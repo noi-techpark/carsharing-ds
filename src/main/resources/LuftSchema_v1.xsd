@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema
+	targetNamespace="http://luft.services.siag.it/remarks_v1.0.wsdl"
+	xmlns="http://www.w3.org/2001/XMLSchema"
+	xmlns:luft="http://luft.services.siag.it/luft_v1.0.xsd"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+
+    <xsd:import schemaLocation="Luft_v1.xsd" namespace="http://luft.services.siag.it/luft_v1.0.xsd" />
+
+	<xsd:element name="getHourlyData">
+		<xsd:annotation>
+			<xsd:documentation>operation to get hourly data</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="stationCode" type="xsd:string" />
+				<xsd:element name="elememtCode" type="xsd:string" />
+				<xsd:element name="remarkedFrom" type="xsd:long" />
+				<xsd:element name="remarkedTo" type="xsd:long" />
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="getHourlyDataResponse">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element minOccurs="0" maxOccurs="unbounded" name="remark" type="luft:remark" />
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	
+	<xsd:element name="getDailyData">
+		<xsd:annotation>
+			<xsd:documentation>operation to get daily data</xsd:documentation>
+		</xsd:annotation>
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element name="stationCode" type="xsd:string" />
+				<xsd:element name="elememtCode" type="xsd:string" />
+				<xsd:element name="remarkedFrom" type="xsd:long" />
+				<xsd:element name="remarkedTo" type="xsd:long" />
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+	<xsd:element name="getDailyDataResponse">
+		<xsd:complexType>
+			<xsd:sequence>
+				<xsd:element  minOccurs="0" maxOccurs="unbounded" name="remark" type="luft:remark" />
+			</xsd:sequence>
+		</xsd:complexType>
+	</xsd:element>
+
+	<xsd:element name="stationCodeNotFoundFault">
+		<xsd:complexType>
+            <xsd:sequence />
+		</xsd:complexType>
+	</xsd:element>
+    <xsd:element name="elementCodeNotFoundFault">
+		<xsd:complexType>
+            <xsd:sequence />
+		</xsd:complexType>
+	</xsd:element>
+</xsd:schema>
