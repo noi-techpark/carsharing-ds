@@ -40,6 +40,7 @@ public class ConnectorServlet extends HttpServlet implements Runnable
    String              endpoint;
    String              user;
    String              password;
+   String[]            cityUIDs;
 
    @Override
    public void init(ServletConfig config) throws ServletException
@@ -56,12 +57,15 @@ public class ConnectorServlet extends HttpServlet implements Runnable
                       + "   <Parameter name=\"endpoint\" value=\"...\"/>\n"
                       + "   <Parameter name=\"user\" value=\"...\"/>\n"
                       + "   <Parameter name=\"password\" value=\"...\"/>\n"
+                      + "   <Parameter name=\"cityUIDs\" value=\"...\"/>\n"
                       + "</Context>\n";
          logger.error(msg);
          throw new ServletException(msg);
       }
       this.user = this.getServletContext().getInitParameter("user");
       this.password = this.getServletContext().getInitParameter("password");
+      String initCityUIDs = this.getServletContext().getInitParameter("cityUIDs");
+      this.cityUIDs = initCityUIDs.split("\\s*,\\s*");
 
       this.destroy = false;
       this.backgroundTask = new Thread(this);
@@ -93,7 +97,7 @@ public class ConnectorServlet extends HttpServlet implements Runnable
                {
                   apiClient = new ApiClient(this.endpoint, this.user, this.password);
                }
-               // TODO Do processing ...
+               ConnectorLogic.process(apiClient, this.endpoint);
             }
             catch (Throwable exxx)
             {

@@ -17,26 +17,22 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package it.bz.tis.integreen.carsharingbzit.api;
+package it.bz.tis.integreen.carsharingbzit;
 
-import java.io.Serializable;
+import it.bz.tis.integreen.xmlrpc.XMLRPCPusher;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class GeoPos implements Serializable
+public class CarSharingXMLRPCPusher extends XMLRPCPusher
 {
-   String lat;
-   String lon;
+   public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
 
-   public String getLat()
+   @Override
+   public Object syncStations(String datasourceName, Object[] data)
    {
-      return this.lat;
-   }
-
-   public String getLon()
-   {
-      return this.lon;
+      this.connectToDataCenterCollector();
+      return super.syncStations(datasourceName, data);
    }
 }

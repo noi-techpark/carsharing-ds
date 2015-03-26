@@ -19,11 +19,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.api;
 
+import java.io.Serializable;
+
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class Station
+public class Station implements Serializable
 {
    String  uid;
    String  name;
