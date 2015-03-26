@@ -32,7 +32,7 @@ import util.IntegreenException;
  */
 public class ConnectorLogic
 {
-   static void process(ApiClient apiClient, String cityUIDs) throws IOException
+   static void process(ApiClient apiClient, String[] cityUIDs) throws IOException
    {
       ListStationsByCityRequest request = new ListStationsByCityRequest(cityUIDs);
       ListStationsByCityResponse response = apiClient.callWebService(request, ListStationsByCityResponse.class);

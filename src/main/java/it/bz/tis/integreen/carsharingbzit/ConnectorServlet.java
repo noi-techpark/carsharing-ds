@@ -97,7 +97,7 @@ public class ConnectorServlet extends HttpServlet implements Runnable
                {
                   apiClient = new ApiClient(this.endpoint, this.user, this.password);
                }
-               ConnectorLogic.process(apiClient, this.endpoint);
+               ConnectorLogic.process(apiClient, this.cityUIDs);
             }
             catch (Throwable exxx)
             {
