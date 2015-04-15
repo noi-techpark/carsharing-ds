@@ -23,7 +23,10 @@ import it.bz.tis.integreen.carsharingbzit.api.ApiClient;
 import it.bz.tis.integreen.carsharingbzit.api.ListStationsByCityRequest;
 import it.bz.tis.integreen.carsharingbzit.api.ListStationsByCityResponse;
 import it.bz.tis.integreen.carsharingbzit.api.Station;
+import it.bz.tis.integreen.dto.StationDto;
+
 import java.io.IOException;
+
 import util.IntegreenException;
 
 /**
@@ -37,10 +40,20 @@ public class ConnectorLogic
       ListStationsByCityRequest request = new ListStationsByCityRequest(cityUIDs);
       ListStationsByCityResponse response = apiClient.callWebService(request, ListStationsByCityResponse.class);
       Station[] stations = response.getCityAndStations()[0].getStation();
-
+      StationDto[] dtoStations = new StationDto[stations.length];
+      
+      for (int i = 0; i < stations.length; i++)
+      {
+    	  dtoStations[i] = new StationDto();
+    	  dtoStations[i].setId(stations[i].getUid());
+    	  dtoStations[i].setName(stations[i].getName());
+    	  dtoStations[i].setLatitude(Double.parseDouble(stations[i].getGeoPos().getLat()));
+    	  dtoStations[i].setLongitude(Double.parseDouble(stations[i].getGeoPos().getLon()));
+      }
+    	  
       CarSharingXMLRPCPusher xmlrpcPusher = new CarSharingXMLRPCPusher();
 
-      Object result = xmlrpcPusher.syncStations(CarSharingXMLRPCPusher.CARSHARINGSTATION_DATASOURCE, stations);
+      Object result = xmlrpcPusher.syncStations(CarSharingXMLRPCPusher.CARSHARINGSTATION_DATASOURCE, dtoStations);
       if (result instanceof IntegreenException)
       {
          throw new IOException("IntegreenException");
