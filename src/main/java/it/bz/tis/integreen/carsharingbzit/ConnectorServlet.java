@@ -48,7 +48,7 @@ public class ConnectorServlet extends HttpServlet implements Runnable
       logger.debug("init(ServletConfig): begin");
       super.init(config);
 
-      this.endpoint = this.getServletContext().getInitParameter("endpoint");
+      this.endpoint = config.getInitParameter("endpoint");
       if (this.endpoint == null || this.endpoint.trim().length() == 0)
       {
          String msg = "endpoint not configured. For dev put a context.xml file in /src/main/tomcatconf; for production in [tomcat]/conf/[engine-name]/[server-name]/[webapp].xml\n"
@@ -62,9 +62,9 @@ public class ConnectorServlet extends HttpServlet implements Runnable
          logger.error(msg);
          throw new ServletException(msg);
       }
-      this.user = this.getServletContext().getInitParameter("user");
-      this.password = this.getServletContext().getInitParameter("password");
-      String initCityUIDs = this.getServletContext().getInitParameter("cityUIDs");
+      this.user = config.getInitParameter("user");
+      this.password = config.getInitParameter("password");
+      String initCityUIDs = config.getInitParameter("cityUIDs");
       this.cityUIDs = initCityUIDs.split("\\s*,\\s*");
 
       this.destroy = false;
