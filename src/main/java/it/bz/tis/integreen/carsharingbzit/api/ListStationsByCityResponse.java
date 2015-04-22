@@ -28,14 +28,14 @@ public class ListStationsByCityResponse
    public static class CityAndStations
    {
       City      city = new City();
-      Station[] station;
+      CarsharingStationDto[] station;
 
       public City getCity()
       {
          return this.city;
       }
 
-      public Station[] getStation()
+      public CarsharingStationDto[] getStation()
       {
          return this.station;
       }

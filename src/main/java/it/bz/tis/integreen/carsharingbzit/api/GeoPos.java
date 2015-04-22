@@ -30,6 +30,16 @@ public class GeoPos implements Serializable
    String lat;
    String lon;
 
+   public void setLat(String lat)
+   {
+      this.lat = lat;
+   }
+
+   public void setLon(String lon)
+   {
+      this.lon = lon;
+   }
+
    public String getLat()
    {
       return this.lat;

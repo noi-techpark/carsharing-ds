@@ -23,28 +23,19 @@ package it.bz.tis.integreen.carsharingbzit.api;
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class ListVehicleOccupancyByStationResponse
+public class GetStationResponse
 {
-   public static class VehicleAndOccupancies
+
+   CarsharingStationDto[] carsharingStationDto;
+
+   public void setStation(CarsharingStationDto[] station)
    {
-      CarsharingVehicleDto     vehicle;
-      Occupancy[] occupancy;
-
-      public CarsharingVehicleDto getVehicle()
-      {
-         return this.vehicle;
-      }
-
-      public Occupancy[] getOccupancy()
-      {
-         return this.occupancy;
-      }
+      this.carsharingStationDto = station;
    }
 
-   VehicleAndOccupancies[] vehicleAndOccupancies;
-
-   public VehicleAndOccupancies[] getVehicleAndOccupancies()
+   public CarsharingStationDto[] getStation()
    {
-      return this.vehicleAndOccupancies;
+      return this.carsharingStationDto;
    }
+
 }

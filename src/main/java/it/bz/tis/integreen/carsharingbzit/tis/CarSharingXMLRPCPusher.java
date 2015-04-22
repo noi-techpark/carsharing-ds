@@ -17,39 +17,27 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package it.bz.tis.integreen.carsharingbzit.api;
+package it.bz.tis.integreen.carsharingbzit.tis;
 
-import java.io.Serializable;
+import it.bz.tis.integreen.xmlrpc.XMLRPCPusher;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class Station implements Serializable
+public class CarSharingXMLRPCPusher extends XMLRPCPusher implements IXMLRPCPusher
 {
-   String  uid;
-   String  name;
-   boolean hasFixedParking;
-   GeoPos  geoPos = new GeoPos();
 
-   public String getUid()
+   @Override
+   public Object syncStations(String datasourceName, Object[] data)
    {
-      return this.uid;
+      this.connectToDataCenterCollector();
+      return super.syncStations(datasourceName, data);
    }
 
-   public String getName()
+   @Override
+   public Object pushData(String datasourceName, Object[] data)
    {
-      return this.name;
+      return super.pushData(datasourceName, data);
    }
-
-   public boolean isHasFixedParking()
-   {
-      return this.hasFixedParking;
-   }
-
-   public GeoPos getGeoPos()
-   {
-      return this.geoPos;
-   }
-
 }

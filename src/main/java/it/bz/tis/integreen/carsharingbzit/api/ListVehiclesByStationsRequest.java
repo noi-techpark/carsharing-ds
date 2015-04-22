@@ -31,14 +31,18 @@ public class ListVehiclesByStationsRequest extends ServiceRequest<ListVehiclesBy
    static class ListVehiclesByStationsSubRequest extends SubRequest
    {
       String[] stationUID;
-   }
 
-   String function = "Api.listVehiclesByStation";
+      public String[] getStationUID()
+      {
+         return this.stationUID;
+      }
+   }
 
    public ListVehiclesByStationsRequest(String... stationUID)
    {
       this.request = new ListVehiclesByStationsSubRequest();
       this.request.stationUID = stationUID;
+      this.function = "Api.listVehiclesByStation";
    }
 
 }

@@ -20,6 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package it.bz.tis.integreen.carsharingbzit;
 
 import it.bz.tis.integreen.carsharingbzit.api.ApiClient;
+import it.bz.tis.integreen.carsharingbzit.tis.CarSharingXMLRPCPusher;
+import it.bz.tis.integreen.carsharingbzit.tis.FakeConnector;
+import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
+import java.util.Calendar;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -32,15 +36,16 @@ import org.apache.logging.log4j.Logger;
  */
 public class ConnectorServlet extends HttpServlet implements Runnable
 {
-   static final Logger logger = LogManager.getLogger(ConnectorServlet.class);
+   static final Logger logger    = LogManager.getLogger(ConnectorServlet.class);
 
    Thread              backgroundTask;
    boolean             destroy;
 
-   String              endpoint;
-   String              user;
-   String              password;
+   ApiClient           apiClient = null;
+
    String[]            cityUIDs;
+
+   IXMLRPCPusher       xmlrpcPusher;
 
    @Override
    public void init(ServletConfig config) throws ServletException
@@ -48,24 +53,28 @@ public class ConnectorServlet extends HttpServlet implements Runnable
       logger.debug("init(ServletConfig): begin");
       super.init(config);
 
-      this.endpoint = config.getInitParameter("endpoint");
-      if (this.endpoint == null || this.endpoint.trim().length() == 0)
+      String endpoint = config.getInitParameter("endpoint");
+      if (endpoint == null || endpoint.trim().length() == 0)
       {
-         String msg = "endpoint not configured. For dev put a context.xml file in /src/main/tomcatconf; for production in [tomcat]/conf/[engine-name]/[server-name]/[webapp].xml\n"
-                      + "with the following content (replace ... with values):\n"
-                      + "<Context>\n"
-                      + "   <Parameter name=\"endpoint\" value=\"...\"/>\n"
-                      + "   <Parameter name=\"user\" value=\"...\"/>\n"
-                      + "   <Parameter name=\"password\" value=\"...\"/>\n"
-                      + "   <Parameter name=\"cityUIDs\" value=\"...\"/>\n"
-                      + "</Context>\n";
+         String msg = "endpoint not configured. Please configure it in the web.xml";
          logger.error(msg);
          throw new ServletException(msg);
       }
-      this.user = config.getInitParameter("user");
-      this.password = config.getInitParameter("password");
+      String user = config.getInitParameter("user");
+      String password = config.getInitParameter("password");
       String initCityUIDs = config.getInitParameter("cityUIDs");
       this.cityUIDs = initCityUIDs.split("\\s*,\\s*");
+
+      this.apiClient = new ApiClient(endpoint, user, password);
+      String xmlrpcPusherParam = config.getInitParameter("xmlrpcpusher");
+      if (xmlrpcPusherParam != null && xmlrpcPusherParam.equals("fake"))
+      {
+         this.xmlrpcPusher = new FakeConnector();
+      }
+      else
+      {
+         this.xmlrpcPusher = new CarSharingXMLRPCPusher();
+      }
 
       this.destroy = false;
       this.backgroundTask = new Thread(this);
@@ -78,35 +87,32 @@ public class ConnectorServlet extends HttpServlet implements Runnable
    public void run()
    {
       logger.debug("run(): begin");
-      ApiClient apiClient = null;
-      boolean first = true;
+      boolean full = true;
+      long updateTime = calcLastPastIntervall();
       while (true)
       {
+         long start = System.currentTimeMillis();
          try
          {
             logger.debug("run(): iteration begin");
-            if (!first)
+            ConnectorLogic.process(this.apiClient, this.cityUIDs, this.xmlrpcPusher, full, updateTime);
+         }
+         catch (Throwable exxx)
+         {
+            logger.debug("run(): exception executing task (catched)", exxx);
+         }
+         finally
+         {
+            long stop = System.currentTimeMillis();
+            logger.debug(String.format("run(): iteration end in %08d millis!\n", stop - start));
+         }
+         try
+         {
+            updateTime += ConnectorLogic.INTERVALL;
+            long sleep = updateTime - System.currentTimeMillis();
+            if (sleep > 0)
             {
-               Thread.sleep(15 * 60 * 1000);
-            }
-            first = false;
-            long start = System.currentTimeMillis();
-            try
-            {
-               if (apiClient == null)
-               {
-                  apiClient = new ApiClient(this.endpoint, this.user, this.password);
-               }
-               ConnectorLogic.process(apiClient, this.cityUIDs);
-            }
-            catch (Throwable exxx)
-            {
-               logger.debug("run(): exception executing task (catched)", exxx);
-            }
-            finally
-            {
-               long stop = System.currentTimeMillis();
-               logger.debug(String.format("run(): iteration end in %08d millis!\n", stop - start));
+               Thread.sleep(sleep);
             }
          }
          catch (InterruptedException ixxx)
@@ -127,6 +133,21 @@ public class ConnectorServlet extends HttpServlet implements Runnable
          }
       }
       logger.debug("run(): end");
+   }
+
+   static long calcLastPastIntervall()
+   {
+      long now = System.currentTimeMillis();
+      Calendar cal = Calendar.getInstance();
+      cal.setTimeInMillis(now);
+      cal.set(Calendar.HOUR_OF_DAY, 0);
+      cal.set(Calendar.MINUTE, 0);
+      cal.set(Calendar.SECOND, 0);
+      cal.set(Calendar.MILLISECOND, 0);
+      long midnight = cal.getTimeInMillis();
+      long daytime = now - midnight;
+      long alreadyCompleteIntervalls = daytime / ConnectorLogic.INTERVALL;
+      return midnight + alreadyCompleteIntervalls * ConnectorLogic.INTERVALL;
    }
 
    @Override

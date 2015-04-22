@@ -17,22 +17,32 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package it.bz.tis.integreen.carsharingbzit;
+package it.bz.tis.integreen.carsharingbzit.api;
 
-import it.bz.tis.integreen.xmlrpc.XMLRPCPusher;
+import it.bz.tis.integreen.carsharingbzit.api.GetVehicleRequest.GetVehicleSubRequest;
+import it.bz.tis.integreen.carsharingbzit.api.ServiceRequest.SubRequest;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class CarSharingXMLRPCPusher extends XMLRPCPusher
+public class GetVehicleRequest extends ServiceRequest<GetVehicleSubRequest>
 {
-   public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
-
-   @Override
-   public Object syncStations(String datasourceName, Object[] data)
+   static class GetVehicleSubRequest extends SubRequest
    {
-      this.connectToDataCenterCollector();
-      return super.syncStations(datasourceName, data);
+      String[] vehicleUID;
+
+      public String[] getVehicleUID()
+      {
+         return this.vehicleUID;
+      }
    }
+
+   public GetVehicleRequest(String... vehicleUID)
+   {
+      this.request = new GetVehicleSubRequest();
+      this.request.vehicleUID = vehicleUID;
+      this.function = "Api.getVehicle";
+   }
+
 }

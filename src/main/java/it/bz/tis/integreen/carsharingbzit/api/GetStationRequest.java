@@ -19,32 +19,30 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.api;
 
+import it.bz.tis.integreen.carsharingbzit.api.GetStationRequest.GetStationSubRequest;
+import it.bz.tis.integreen.carsharingbzit.api.ServiceRequest.SubRequest;
+
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class ListVehicleOccupancyByStationResponse
+public class GetStationRequest extends ServiceRequest<GetStationSubRequest>
 {
-   public static class VehicleAndOccupancies
+   static class GetStationSubRequest extends SubRequest
    {
-      CarsharingVehicleDto     vehicle;
-      Occupancy[] occupancy;
+      String[] stationUID;
 
-      public CarsharingVehicleDto getVehicle()
+      public String[] getStationUID()
       {
-         return this.vehicle;
-      }
-
-      public Occupancy[] getOccupancy()
-      {
-         return this.occupancy;
+         return this.stationUID;
       }
    }
 
-   VehicleAndOccupancies[] vehicleAndOccupancies;
-
-   public VehicleAndOccupancies[] getVehicleAndOccupancies()
+   public GetStationRequest(String... stationUID)
    {
-      return this.vehicleAndOccupancies;
+      this.request = new GetStationSubRequest();
+      this.request.stationUID = stationUID;
+      this.function = "Api.getStation";
    }
+
 }

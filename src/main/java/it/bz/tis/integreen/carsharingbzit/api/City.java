@@ -27,4 +27,14 @@ public class City
 {
    String uid;
    String name;
+
+   public String getUid()
+   {
+      return this.uid;
+   }
+
+   public String getName()
+   {
+      return this.name;
+   }
 }

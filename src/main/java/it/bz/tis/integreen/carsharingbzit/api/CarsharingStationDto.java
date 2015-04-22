@@ -19,22 +19,45 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.api;
 
+import it.bz.tis.integreen.dto.StationDto;
+
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class Vehicle
+public class CarsharingStationDto extends StationDto
 {
-   String vehicleUID;
-   String name;
+   boolean  hasFixedParking;
+   BookMode bookMode;
 
-   public String getVehicleUID()
+   public void setUid(String uid)
    {
-      return this.vehicleUID;
+      this.setId(uid);
    }
 
-   public String getName()
+   public void setHasFixedParking(boolean hasFixedParking)
    {
-      return this.name;
+      this.hasFixedParking = hasFixedParking;
+   }
+
+   public boolean isHasFixedParking()
+   {
+      return this.hasFixedParking;
+   }
+
+   public void setGeoPos(GeoPos geoPos)
+   {
+      this.setLatitude(Double.parseDouble(geoPos.getLat()));
+      this.setLongitude(Double.parseDouble(geoPos.getLon()));
+   }
+
+   public void setBookMode(BookMode bookMode)
+   {
+      this.bookMode = bookMode;
+   }
+
+   public BookMode getBookMode()
+   {
+      return this.bookMode;
    }
 }

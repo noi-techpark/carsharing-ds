@@ -61,7 +61,10 @@ public class ApiClient
       request.request.technicalUser.password = this.password;
 
       ObjectMapper mapper = new ObjectMapper();
-      mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NON_PRIVATE);
+      mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NONE).setVisibility(PropertyAccessor.IS_GETTER,
+                                                                                  Visibility.PUBLIC_ONLY).setVisibility(PropertyAccessor.GETTER,
+                                                                                                                        Visibility.PUBLIC_ONLY).setVisibility(PropertyAccessor.SETTER,
+                                                                                                                                                              Visibility.PUBLIC_ONLY);
       mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
       StringWriter sw = new StringWriter();
@@ -109,5 +112,4 @@ public class ApiClient
 
       return response;
    }
-
 }
