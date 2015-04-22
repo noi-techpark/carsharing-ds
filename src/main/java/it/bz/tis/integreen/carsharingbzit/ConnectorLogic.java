@@ -37,6 +37,7 @@ import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import util.IntegreenException;
@@ -54,11 +55,23 @@ public class ConnectorLogic
 
    static final SimpleDateFormat SIMPLE_DATE_FORMAT           = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX"); // 2014-09-15T12:00:00
 
-   static void process(ApiClient apiClient,
-                       String[] cityUIDs,
-                       IXMLRPCPusher xmlrpcPusher,
-                       boolean full,
-                       long updateTime) throws IOException
+   static HashMap<String, String[]> process(ApiClient apiClient,
+                                            String[] cityUIDs,
+                                            IXMLRPCPusher xmlrpcPusher,
+                                            HashMap<String, String[]> vehicleIdsByStationIds,
+                                            long updateTime) throws IOException
+   {
+      if (vehicleIdsByStationIds == null) // Do a full sync
+      {
+         vehicleIdsByStationIds = processSyncStations(apiClient, cityUIDs, xmlrpcPusher);
+      }
+      processPusDatas(apiClient, xmlrpcPusher, vehicleIdsByStationIds, updateTime);
+      return vehicleIdsByStationIds;
+   }
+
+   static HashMap<String, String[]> processSyncStations(ApiClient apiClient,
+                                                        String[] cityUIDs,
+                                                        IXMLRPCPusher xmlrpcPusher) throws IOException
    {
       ///////////////////////////////////////////////////////////////
       // Stations by city
@@ -112,61 +125,6 @@ public class ConnectorLogic
                                                                            GetVehicleResponse.class);
 
       ///////////////////////////////////////////////////////////////
-      // Read vehicles occupancy and calculate summaries
-      ///////////////////////////////////////////////////////////////
-
-      ArrayList<HashMap<String, String>> stationOccupancies = new ArrayList<>();
-      ArrayList<HashMap<String, String>> vehicleOccupancies = new ArrayList<>();
-
-      String begin = SIMPLE_DATE_FORMAT.format(new Date(updateTime));
-      // TODO begin buffer depends on car type
-      String begin_carsharing = SIMPLE_DATE_FORMAT.format(new Date(updateTime - 30L * 60L * 1000L));
-      String end = SIMPLE_DATE_FORMAT.format(new Date(updateTime + INTERVALL));
-
-      for (String stationId : stationIds)
-      {
-         String[] vehicleIds = vehicleIdsByStationIds.get(stationId);
-         ListVehicleOccupancyByStationRequest occupancyByStationRequest = new ListVehicleOccupancyByStationRequest(begin_carsharing,
-                                                                                                                   end,
-                                                                                                                   stationId,
-                                                                                                                   vehicleIds);
-
-         ListVehicleOccupancyByStationResponse responseOccupancy = apiClient.callWebService(occupancyByStationRequest,
-                                                                                            ListVehicleOccupancyByStationResponse.class);
-
-         VehicleAndOccupancies[] occupancies = responseOccupancy.getVehicleAndOccupancies();
-         int free = 0;
-         for (VehicleAndOccupancies vehicleOccupancy : occupancies)
-         {
-            if (vehicleOccupancy.getOccupancy().length > 1)
-            {
-               throw new IllegalStateException("Why???");
-            }
-            int state = 0; // free
-            if (vehicleOccupancy.getOccupancy().length == 1)
-            {
-               state = 1;
-            }
-            else
-            {
-               free++;
-            }
-            HashMap<String, String> vehicleData = new HashMap<String, String>();
-            vehicleData.put("id", vehicleOccupancy.getVehicle().getId());
-            vehicleData.put("state", String.valueOf(state));
-            vehicleData.put("timestamp", begin);
-            vehicleOccupancies.add(vehicleData);
-         }
-
-         HashMap<String, String> stationData = new HashMap<String, String>();
-         stationData.put("id", stationId);
-         stationData.put("free", String.valueOf(free));
-         stationData.put("timestamp", begin);
-         stationOccupancies.add(stationData);
-
-      }
-
-      ///////////////////////////////////////////////////////////////
       // Write data to integreen
       ///////////////////////////////////////////////////////////////
 
@@ -181,18 +139,94 @@ public class ConnectorLogic
       {
          throw new IOException("IntegreenException");
       }
+      return vehicleIdsByStationIds;
+   }
 
-      result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, stationOccupancies.toArray());
-      if (result instanceof IntegreenException)
+   static void processPusDatas(ApiClient apiClient,
+                               IXMLRPCPusher xmlrpcPusher,
+                               HashMap<String, String[]> vehicleIdsByStationIds,
+                               long updateTime) throws IOException
+   {
+      ///////////////////////////////////////////////////////////////
+      // Read vehicles occupancy and calculate summaries
+      ///////////////////////////////////////////////////////////////
+
+      String created = SIMPLE_DATE_FORMAT.format(new Date(updateTime));
+
+      // Current and forecast
+      for (long forecast : new long[] { 0, 30L * 60L * 1000L })
       {
-         throw new IOException("IntegreenException");
-      }
+         ArrayList<HashMap<String, String>> stationOccupancies = new ArrayList<>();
+         ArrayList<HashMap<String, String>> vehicleOccupancies = new ArrayList<>();
 
-      result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, vehicleOccupancies.toArray());
-      if (result instanceof IntegreenException)
-      {
-         throw new IOException("IntegreenException");
-      }
+         String begin = SIMPLE_DATE_FORMAT.format(new Date(updateTime + forecast));
+         // TODO begin buffer depends on car type
+         String begin_carsharing = SIMPLE_DATE_FORMAT.format(new Date(updateTime - 30L * 60L * 1000L + forecast));
+         String end = SIMPLE_DATE_FORMAT.format(new Date(updateTime + INTERVALL + forecast));
 
+         String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
+         Arrays.sort(stationIds);
+
+         for (String stationId : stationIds)
+         {
+            String[] vehicleIds = vehicleIdsByStationIds.get(stationId);
+            ListVehicleOccupancyByStationRequest occupancyByStationRequest = new ListVehicleOccupancyByStationRequest(begin_carsharing,
+                                                                                                                      end,
+                                                                                                                      stationId,
+                                                                                                                      vehicleIds);
+
+            ListVehicleOccupancyByStationResponse responseOccupancy = apiClient.callWebService(occupancyByStationRequest,
+                                                                                               ListVehicleOccupancyByStationResponse.class);
+
+            VehicleAndOccupancies[] occupancies = responseOccupancy.getVehicleAndOccupancies();
+            int free = 0;
+            for (VehicleAndOccupancies vehicleOccupancy : occupancies)
+            {
+               if (vehicleOccupancy.getOccupancy().length > 1)
+               {
+                  throw new IllegalStateException("Why???");
+               }
+               int state = 0; // free
+               if (vehicleOccupancy.getOccupancy().length == 1)
+               {
+                  state = 1;
+               }
+               else
+               {
+                  free++;
+               }
+               HashMap<String, String> vehicleData = new HashMap<String, String>();
+               vehicleData.put("id", vehicleOccupancy.getVehicle().getId());
+               vehicleData.put("state", String.valueOf(state));
+               vehicleData.put("timestamp", begin);
+               vehicleData.put("created", created);
+               vehicleOccupancies.add(vehicleData);
+            }
+
+            HashMap<String, String> stationData = new HashMap<String, String>();
+            stationData.put("id", stationId);
+            stationData.put("free", String.valueOf(free));
+            stationData.put("timestamp", begin);
+            stationData.put("created", created);
+            stationOccupancies.add(stationData);
+
+         }
+
+         ///////////////////////////////////////////////////////////////
+         // Write data to integreen
+         ///////////////////////////////////////////////////////////////
+
+         Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, stationOccupancies.toArray());
+         if (result instanceof IntegreenException)
+         {
+            throw new IOException("IntegreenException");
+         }
+
+         result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, vehicleOccupancies.toArray());
+         if (result instanceof IntegreenException)
+         {
+            throw new IOException("IntegreenException");
+         }
+      }
    }
 }

@@ -24,6 +24,7 @@ import it.bz.tis.integreen.carsharingbzit.tis.CarSharingXMLRPCPusher;
 import it.bz.tis.integreen.carsharingbzit.tis.FakeConnector;
 import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
 import java.util.Calendar;
+import java.util.HashMap;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -36,16 +37,18 @@ import org.apache.logging.log4j.Logger;
  */
 public class ConnectorServlet extends HttpServlet implements Runnable
 {
-   static final Logger logger    = LogManager.getLogger(ConnectorServlet.class);
+   static final Logger       logger    = LogManager.getLogger(ConnectorServlet.class);
 
-   Thread              backgroundTask;
-   boolean             destroy;
+   Thread                    backgroundTask;
+   boolean                   destroy;
 
-   ApiClient           apiClient = null;
+   ApiClient                 apiClient = null;
 
-   String[]            cityUIDs;
+   String[]                  cityUIDs;
 
-   IXMLRPCPusher       xmlrpcPusher;
+   IXMLRPCPusher             xmlrpcPusher;
+
+   HashMap<String, String[]> vehicleIdsByStationIds;
 
    @Override
    public void init(ServletConfig config) throws ServletException
@@ -76,6 +79,8 @@ public class ConnectorServlet extends HttpServlet implements Runnable
          this.xmlrpcPusher = new CarSharingXMLRPCPusher();
       }
 
+      this.vehicleIdsByStationIds = null;
+
       this.destroy = false;
       this.backgroundTask = new Thread(this);
       this.backgroundTask.setName("background-task");
@@ -87,7 +92,6 @@ public class ConnectorServlet extends HttpServlet implements Runnable
    public void run()
    {
       logger.debug("run(): begin");
-      boolean full = true;
       long updateTime = calcLastPastIntervall();
       while (true)
       {
@@ -95,7 +99,16 @@ public class ConnectorServlet extends HttpServlet implements Runnable
          try
          {
             logger.debug("run(): iteration begin");
-            ConnectorLogic.process(this.apiClient, this.cityUIDs, this.xmlrpcPusher, full, updateTime);
+            if (isTimeForAFullSync(updateTime))
+            {
+               // Trash previous informations
+               this.vehicleIdsByStationIds = null;
+            }
+            this.vehicleIdsByStationIds = ConnectorLogic.process(this.apiClient,
+                                                                 this.cityUIDs,
+                                                                 this.xmlrpcPusher,
+                                                                 this.vehicleIdsByStationIds,
+                                                                 updateTime);
          }
          catch (Throwable exxx)
          {
@@ -148,6 +161,13 @@ public class ConnectorServlet extends HttpServlet implements Runnable
       long daytime = now - midnight;
       long alreadyCompleteIntervalls = daytime / ConnectorLogic.INTERVALL;
       return midnight + alreadyCompleteIntervalls * ConnectorLogic.INTERVALL;
+   }
+
+   static boolean isTimeForAFullSync(long time)
+   {
+      Calendar cal = Calendar.getInstance();
+      cal.setTimeInMillis(time);
+      return cal.get(Calendar.HOUR_OF_DAY) == 14 && cal.get(Calendar.MINUTE) == 29;
    }
 
    @Override
