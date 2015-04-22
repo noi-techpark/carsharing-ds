@@ -27,15 +27,15 @@ public class ListVehiclesByStationsResponse
 {
    public static class StationAndVehicles
    {
-      CarsharingStationDto   station;
-      CarsharingVehicleDto[] vehicle;
+      it.bz.tis.integreen.dto.carsharing.CarsharingStationDto station;
+      it.bz.tis.integreen.dto.carsharing.CarsharingVehicleDto[] vehicle;
 
-      public CarsharingStationDto getStation()
+      public it.bz.tis.integreen.dto.carsharing.CarsharingStationDto getStation()
       {
          return this.station;
       }
 
-      public CarsharingVehicleDto[] getVehicle()
+      public it.bz.tis.integreen.dto.carsharing.CarsharingVehicleDto[] getVehicle()
       {
          return this.vehicle;
       }
