@@ -28,14 +28,14 @@ public class ListStationsByCityResponse
    public static class CityAndStations
    {
       City      city = new City();
-      CarsharingStationDto[] station;
+      it.bz.tis.integreen.dto.carsharing.CarsharingStationDto[] station;
 
       public City getCity()
       {
          return this.city;
       }
 
-      public CarsharingStationDto[] getStation()
+      public it.bz.tis.integreen.dto.carsharing.CarsharingStationDto[] getStation()
       {
          return this.station;
       }

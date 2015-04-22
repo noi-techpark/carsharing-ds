@@ -32,8 +32,7 @@ import it.bz.tis.integreen.carsharingbzit.api.ListVehicleOccupancyByStationRespo
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsRequest;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse.StationAndVehicles;
-import it.bz.tis.integreen.carsharingbzit.api.CarsharingStationDto;
-import it.bz.tis.integreen.carsharingbzit.api.CarsharingVehicleDto;
+import it.bz.tis.integreen.dto.carsharing.*;
 import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
