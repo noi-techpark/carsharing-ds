@@ -28,4 +28,19 @@ public class Occupancy
    String begin;
    String end;
    String occupancyKind;
+
+   public String getBegin()
+   {
+      return this.begin;
+   }
+
+   public String getEnd()
+   {
+      return this.end;
+   }
+
+   public String getOccupancyKind()
+   {
+      return this.occupancyKind;
+   }
 }

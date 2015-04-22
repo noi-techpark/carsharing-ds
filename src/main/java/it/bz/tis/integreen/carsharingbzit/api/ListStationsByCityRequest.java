@@ -31,14 +31,18 @@ public class ListStationsByCityRequest extends ServiceRequest<ListStationsByCity
    static class ListStationsByCitySubRequest extends SubRequest
    {
       String[] cityUID;
-   }
 
-   String function = "Api.listStationsByCity";
+      public String[] getCityUID()
+      {
+         return this.cityUID;
+      }
+   }
 
    public ListStationsByCityRequest(String... cityUID)
    {
       this.request = new ListStationsByCitySubRequest();
       this.request.cityUID = cityUID;
+      this.function = "Api.listStationsByCity";
    }
 
 }

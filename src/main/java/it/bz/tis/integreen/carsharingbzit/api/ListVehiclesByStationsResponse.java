@@ -27,15 +27,15 @@ public class ListVehiclesByStationsResponse
 {
    public static class StationAndVehicles
    {
-      Station   station;
-      Vehicle[] vehicle;
+      CarsharingStationDto   station;
+      CarsharingVehicleDto[] vehicle;
 
-      public Station getStation()
+      public CarsharingStationDto getStation()
       {
          return this.station;
       }
 
-      public Vehicle[] getVehicle()
+      public CarsharingVehicleDto[] getVehicle()
       {
          return this.vehicle;
       }

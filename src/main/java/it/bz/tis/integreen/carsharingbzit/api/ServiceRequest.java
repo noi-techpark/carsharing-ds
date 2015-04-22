@@ -30,7 +30,23 @@ public class ServiceRequest<S extends SubRequest>
    public static class SubRequest
    {
       TechnicalUser technicalUser = new TechnicalUser();
+
+      public TechnicalUser getTechnicalUser()
+      {
+         return this.technicalUser;
+      }
    }
 
-   S request;
+   S      request;
+   String function = "";
+
+   public S getRequest()
+   {
+      return this.request;
+   }
+
+   public String getFunction()
+   {
+      return this.function;
+   }
 }

@@ -17,30 +17,47 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package it.bz.tis.integreen.carsharingbzit;
+package it.bz.tis.integreen.carsharingbzit.api;
 
-import java.net.MalformedURLException;
-
-import it.bz.tis.integreen.xmlrpc.XMLRPCPusher;
+import it.bz.tis.integreen.dto.StationDto;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class CarSharingXMLRPCPusher extends XMLRPCPusher
+public class CarsharingStationDto extends StationDto
 {
-   public static final String CARSHARINGSTATION_DATASOURCE = "CarsharingStation";
+   boolean  hasFixedParking;
+   BookMode bookMode;
 
-   @Override
-   public Object syncStations(String datasourceName, Object[] data)
+   public void setUid(String uid)
    {
-      try {
-		this.connectToDataCenterCollector("localhost","8080","/Collector/xmlrpc");
-	      return super.syncStations(datasourceName, data);
+      this.setId(uid);
+   }
 
-	} catch (MalformedURLException e) {
-		e.printStackTrace();
-	}
-	return null;
+   public void setHasFixedParking(boolean hasFixedParking)
+   {
+      this.hasFixedParking = hasFixedParking;
+   }
+
+   public boolean isHasFixedParking()
+   {
+      return this.hasFixedParking;
+   }
+
+   public void setGeoPos(GeoPos geoPos)
+   {
+      this.setLatitude(Double.parseDouble(geoPos.getLat()));
+      this.setLongitude(Double.parseDouble(geoPos.getLon()));
+   }
+
+   public void setBookMode(BookMode bookMode)
+   {
+      this.bookMode = bookMode;
+   }
+
+   public BookMode getBookMode()
+   {
+      return this.bookMode;
    }
 }

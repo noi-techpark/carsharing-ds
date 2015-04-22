@@ -17,34 +17,15 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package it.bz.tis.integreen.carsharingbzit.api;
+package it.bz.tis.integreen.carsharingbzit.tis;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class ListVehicleOccupancyByStationResponse
+public interface IXMLRPCPusher
 {
-   public static class VehicleAndOccupancies
-   {
-      CarsharingVehicleDto     vehicle;
-      Occupancy[] occupancy;
+   public Object syncStations(String datasourceName, Object[] data);
 
-      public CarsharingVehicleDto getVehicle()
-      {
-         return this.vehicle;
-      }
-
-      public Occupancy[] getOccupancy()
-      {
-         return this.occupancy;
-      }
-   }
-
-   VehicleAndOccupancies[] vehicleAndOccupancies;
-
-   public VehicleAndOccupancies[] getVehicleAndOccupancies()
-   {
-      return this.vehicleAndOccupancies;
-   }
+   public Object pushData(String datasourceName, Object[] data);
 }

@@ -19,37 +19,30 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.api;
 
-import java.io.Serializable;
+import it.bz.tis.integreen.carsharingbzit.api.GetVehicleRequest.GetVehicleSubRequest;
+import it.bz.tis.integreen.carsharingbzit.api.ServiceRequest.SubRequest;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class Station implements Serializable
+public class GetVehicleRequest extends ServiceRequest<GetVehicleSubRequest>
 {
-   String  uid;
-   String  name;
-   boolean hasFixedParking;
-   GeoPos  geoPos = new GeoPos();
-
-   public String getUid()
+   static class GetVehicleSubRequest extends SubRequest
    {
-      return this.uid;
+      String[] vehicleUID;
+
+      public String[] getVehicleUID()
+      {
+         return this.vehicleUID;
+      }
    }
 
-   public String getName()
+   public GetVehicleRequest(String... vehicleUID)
    {
-      return this.name;
-   }
-
-   public boolean isHasFixedParking()
-   {
-      return this.hasFixedParking;
-   }
-
-   public GeoPos getGeoPos()
-   {
-      return this.geoPos;
+      this.request = new GetVehicleSubRequest();
+      this.request.vehicleUID = vehicleUID;
+      this.function = "Api.getVehicle";
    }
 
 }

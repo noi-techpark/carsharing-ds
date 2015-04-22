@@ -34,15 +34,36 @@ public class ListVehicleOccupancyByStationRequest extends ServiceRequest<ListVeh
       String[] vehicleUID;
       String   begin;
       String   end;
-   }
 
-   String function = "Api.listVehicleOccupancyByStation";
+      public String getStationUID()
+      {
+         return this.stationUID;
+      }
+
+      public String[] getVehicleUID()
+      {
+         return this.vehicleUID;
+      }
+
+      public String getBegin()
+      {
+         return this.begin;
+      }
+
+      public String getEnd()
+      {
+         return this.end;
+      }
+   }
 
    public ListVehicleOccupancyByStationRequest(String begin, String end, String stationUID, String... vehicleUID)
    {
       this.request = new ListVehicleOccupancyByStationSubRequest();
       this.request.stationUID = stationUID;
       this.request.vehicleUID = vehicleUID;
+      this.request.begin = begin;
+      this.request.end = end;
+      this.function = "Api.listVehicleOccupancyByStation";
    }
 
 }

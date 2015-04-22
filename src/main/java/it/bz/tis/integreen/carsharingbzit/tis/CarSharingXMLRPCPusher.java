@@ -17,24 +17,35 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package it.bz.tis.integreen.carsharingbzit.api;
+package it.bz.tis.integreen.carsharingbzit.tis;
+
+import java.net.MalformedURLException;
+
+import it.bz.tis.integreen.xmlrpc.XMLRPCPusher;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class Vehicle
+public class CarSharingXMLRPCPusher extends XMLRPCPusher implements IXMLRPCPusher
 {
-   String vehicleUID;
-   String name;
 
-   public String getVehicleUID()
+   @Override
+   public Object syncStations(String datasourceName, Object[] data)
    {
-      return this.vehicleUID;
+      try {
+		this.connectToDataCenterCollector("localhost","8080","/Collector/xmlrpc");
+	      return super.syncStations(datasourceName, data);
+
+	} catch (MalformedURLException e) {
+		e.printStackTrace();
+	}
+	return null;
    }
 
-   public String getName()
+   @Override
+   public Object pushData(String datasourceName, Object[] data)
    {
-      return this.name;
+      return super.pushData(datasourceName, data);
    }
 }

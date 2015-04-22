@@ -23,28 +23,40 @@ package it.bz.tis.integreen.carsharingbzit.api;
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class ListVehicleOccupancyByStationResponse
+public class BookMode
 {
-   public static class VehicleAndOccupancies
+   boolean canBookAhead;
+   boolean spontaneously;
+   boolean hasCompanyPreferredVehicle;
+
+   public boolean isCanBookAhead()
    {
-      CarsharingVehicleDto     vehicle;
-      Occupancy[] occupancy;
-
-      public CarsharingVehicleDto getVehicle()
-      {
-         return this.vehicle;
-      }
-
-      public Occupancy[] getOccupancy()
-      {
-         return this.occupancy;
-      }
+      return this.canBookAhead;
    }
 
-   VehicleAndOccupancies[] vehicleAndOccupancies;
-
-   public VehicleAndOccupancies[] getVehicleAndOccupancies()
+   public void setCanBookAhead(boolean canBookAhead)
    {
-      return this.vehicleAndOccupancies;
+      this.canBookAhead = canBookAhead;
    }
+
+   public boolean isSpontaneously()
+   {
+      return this.spontaneously;
+   }
+
+   public void setSpontaneously(boolean spontaneously)
+   {
+      this.spontaneously = spontaneously;
+   }
+
+   public boolean isHasCompanyPreferredVehicle()
+   {
+      return this.hasCompanyPreferredVehicle;
+   }
+
+   public void setHasCompanyPreferredVehicle(boolean hasCompanyPreferredVehicle)
+   {
+      this.hasCompanyPreferredVehicle = hasCompanyPreferredVehicle;
+   }
+
 }
