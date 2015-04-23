@@ -151,7 +151,7 @@ public class ConnectorLogic
       // Read vehicles occupancy and calculate summaries
       ///////////////////////////////////////////////////////////////
 
-      String created = SIMPLE_DATE_FORMAT.format(new Date(updateTime));
+      String created = SIMPLE_DATE_FORMAT.format(new Date(System.currentTimeMillis()));
 
       // Current and forecast
       for (long forecast : new long[] { 0, 30L * 60L * 1000L })
