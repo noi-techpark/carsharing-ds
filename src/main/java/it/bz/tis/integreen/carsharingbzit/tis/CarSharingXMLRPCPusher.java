@@ -19,8 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.tis;
 
-import java.net.MalformedURLException;
-
 import it.bz.tis.integreen.xmlrpc.XMLRPCPusher;
 
 /**
@@ -33,14 +31,8 @@ public class CarSharingXMLRPCPusher extends XMLRPCPusher implements IXMLRPCPushe
    @Override
    public Object syncStations(String datasourceName, Object[] data)
    {
-      try {
-		this.connectToDataCenterCollector("localhost","8080","/Collector/xmlrpc");
-	      return super.syncStations(datasourceName, data);
-
-	} catch (MalformedURLException e) {
-		e.printStackTrace();
-	}
-	return null;
+	   this.connectToDataCenterCollector();
+	   return super.syncStations(datasourceName, data);
    }
 
    @Override
