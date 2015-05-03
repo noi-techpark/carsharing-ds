@@ -34,12 +34,14 @@ import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse.StationAndVehicles;
 import it.bz.tis.integreen.dto.carsharing.*;
 import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
+
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+
 import util.IntegreenException;
 
 /**
@@ -175,7 +177,7 @@ public class ConnectorLogic
       // Read vehicles occupancy and calculate summaries
       ///////////////////////////////////////////////////////////////
 
-      String created = SIMPLE_DATE_FORMAT.format(new Date(System.currentTimeMillis()));
+      String created = String.valueOf(updateTime);
 
       // Current and forecast
       for (long forecast : new long[] { 0, 30L * 60L * 1000L })
@@ -183,7 +185,7 @@ public class ConnectorLogic
          ArrayList<HashMap<String, String>> stationOccupancies = new ArrayList<>();
          ArrayList<HashMap<String, String>> vehicleOccupancies = new ArrayList<>();
 
-         String begin = SIMPLE_DATE_FORMAT.format(new Date(updateTime + forecast));
+         String begin = String.valueOf(updateTime + forecast);
          // TODO begin buffer depends on car type
          String begin_carsharing = SIMPLE_DATE_FORMAT.format(new Date(updateTime - 30L * 60L * 1000L + forecast));
          String end = SIMPLE_DATE_FORMAT.format(new Date(updateTime + INTERVALL + forecast));
@@ -224,18 +226,18 @@ public class ConnectorLogic
                   free++;
                }
                HashMap<String, String> vehicleData = new HashMap<String, String>();
-               vehicleData.put("id", vehicleOccupancy.getVehicle().getId());
-               vehicleData.put("state", String.valueOf(state));
-               vehicleData.put("timestamp", begin);
-               vehicleData.put("created", created);
+               vehicleData.put(CarsharingVehicleDto.IDENTIFIER, vehicleOccupancy.getVehicle().getId());
+               vehicleData.put(CarsharingVehicleDto.STATE, String.valueOf(state));
+               vehicleData.put(CarsharingVehicleDto.TIMESTAMP, begin);
+               vehicleData.put(CarsharingVehicleDto.CREATED_ON, created);
                vehicleOccupancies.add(vehicleData);
             }
 
             HashMap<String, String> stationData = new HashMap<String, String>();
-            stationData.put("id", stationId);
-            stationData.put("free", String.valueOf(free));
-            stationData.put("timestamp", begin);
-            stationData.put("created", created);
+            stationData.put(CarsharingStationDto.IDENTIFIER, stationId);
+            stationData.put(CarsharingStationDto.VALUE_IDENTIFIER, String.valueOf(free));
+            stationData.put(CarsharingStationDto.TIMESTAMP, begin);
+            stationData.put(CarsharingStationDto.CREATED_ON, created);
             stationOccupancies.add(stationData);
 
          }

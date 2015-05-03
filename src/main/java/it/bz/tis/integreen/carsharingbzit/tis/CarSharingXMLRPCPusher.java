@@ -31,8 +31,8 @@ public class CarSharingXMLRPCPusher extends XMLRPCPusher implements IXMLRPCPushe
    @Override
    public Object syncStations(String datasourceName, Object[] data)
    {
-      this.connectToDataCenterCollector();
-      return super.syncStations(datasourceName, data);
+	   this.connectToDataCenterCollector();
+	   return super.syncStations(datasourceName, data);
    }
 
    @Override
