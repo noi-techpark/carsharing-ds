@@ -23,11 +23,17 @@ import it.bz.tis.integreen.carsharingbzit.api.ApiClient;
 import it.bz.tis.integreen.carsharingbzit.tis.CarSharingXMLRPCPusher;
 import it.bz.tis.integreen.carsharingbzit.tis.FakeConnector;
 import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -37,18 +43,21 @@ import org.apache.logging.log4j.Logger;
  */
 public class ConnectorServlet extends HttpServlet implements Runnable
 {
-   static final Logger       logger    = LogManager.getLogger(ConnectorServlet.class);
+   static final Logger       logger       = LogManager.getLogger(ConnectorServlet.class);
 
    Thread                    backgroundTask;
    boolean                   destroy;
 
-   ApiClient                 apiClient = null;
+   ApiClient                 apiClient    = null;
 
    String[]                  cityUIDs;
 
    IXMLRPCPusher             xmlrpcPusher;
 
    HashMap<String, String[]> vehicleIdsByStationIds;
+
+   String                    serviceStartedAt;
+   ArrayList<ActivityLog>    activityLogs = new ArrayList<ActivityLog>();
 
    @Override
    public void init(ServletConfig config) throws ServletException
@@ -92,10 +101,12 @@ public class ConnectorServlet extends HttpServlet implements Runnable
    public void run()
    {
       logger.debug("run(): begin");
+      this.serviceStartedAt = formatDateTime(System.currentTimeMillis());
       long updateTime = calcLastPastIntervall();
       while (true)
       {
          long start = System.currentTimeMillis();
+         ActivityLog activityLog = new ActivityLog();
          try
          {
             logger.debug("run(): iteration begin");
@@ -103,20 +114,35 @@ public class ConnectorServlet extends HttpServlet implements Runnable
             {
                // Trash previous informations
                this.vehicleIdsByStationIds = null;
+               activityLog.full = true;
+            }
+            activityLog.timestamp = formatDateTime(System.currentTimeMillis());
+            activityLog.requesttime = formatDateTime(updateTime);
+            synchronized (this.activityLogs)
+            {
+               this.activityLogs.add(activityLog);
+               while (this.activityLogs.size() > 1000)
+               {
+                  this.activityLogs.remove(0);
+               }
             }
             this.vehicleIdsByStationIds = ConnectorLogic.process(this.apiClient,
                                                                  this.cityUIDs,
                                                                  this.xmlrpcPusher,
                                                                  this.vehicleIdsByStationIds,
-                                                                 updateTime);
+                                                                 updateTime,
+                                                                 activityLog,
+                                                                 this.activityLogs);
          }
          catch (Throwable exxx)
          {
+            activityLog.error = exxx.getClass().getName() + ": " + exxx.getMessage();
             logger.debug("run(): exception executing task (catched)", exxx);
          }
          finally
          {
             long stop = System.currentTimeMillis();
+            activityLog.durationSec = (int) ((stop - start) / 1000);
             logger.debug(String.format("run(): iteration end in %08d millis!\n", stop - start));
          }
          try
@@ -167,7 +193,28 @@ public class ConnectorServlet extends HttpServlet implements Runnable
    {
       Calendar cal = Calendar.getInstance();
       cal.setTimeInMillis(time);
-      return cal.get(Calendar.HOUR_OF_DAY) == 14 && cal.get(Calendar.MINUTE) == 29;
+      return cal.get(Calendar.HOUR_OF_DAY) == 12 && cal.get(Calendar.MINUTE) == 00;
+   }
+
+   @Override
+   protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException
+   {
+      String from;
+      ActivityLog[] al;
+      synchronized (this.activityLogs)
+      {
+         from = this.serviceStartedAt;
+         al = new ActivityLog[this.activityLogs.size()];
+         for (int i = 0; i < al.length; i++)
+         {
+            al[i] = this.activityLogs.get(i).clone();
+         }
+      }
+      HashMap<String, Object> data = new HashMap<String, Object>();
+      data.put("from", from);
+      data.put("logs", al);
+      req.setAttribute("data", data);
+      req.getRequestDispatcher("/report.jsp").forward(req, resp);
    }
 
    @Override
@@ -194,4 +241,8 @@ public class ConnectorServlet extends HttpServlet implements Runnable
       }
    }
 
+   static String formatDateTime(long dateTime)
+   {
+      return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(dateTime));
+   }
 }

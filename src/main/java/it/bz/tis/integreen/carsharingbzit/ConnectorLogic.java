@@ -59,19 +59,23 @@ public class ConnectorLogic
                                             String[] cityUIDs,
                                             IXMLRPCPusher xmlrpcPusher,
                                             HashMap<String, String[]> vehicleIdsByStationIds,
-                                            long updateTime) throws IOException
+                                            long updateTime,
+                                            ActivityLog activityLog,
+                                            ArrayList<ActivityLog> lock) throws IOException
    {
       if (vehicleIdsByStationIds == null) // Do a full sync
       {
-         vehicleIdsByStationIds = processSyncStations(apiClient, cityUIDs, xmlrpcPusher);
+         vehicleIdsByStationIds = processSyncStations(apiClient, cityUIDs, xmlrpcPusher, activityLog, lock);
       }
-      processPusDatas(apiClient, xmlrpcPusher, vehicleIdsByStationIds, updateTime);
+      processPusDatas(apiClient, xmlrpcPusher, vehicleIdsByStationIds, updateTime, activityLog, lock);
       return vehicleIdsByStationIds;
    }
 
    static HashMap<String, String[]> processSyncStations(ApiClient apiClient,
                                                         String[] cityUIDs,
-                                                        IXMLRPCPusher xmlrpcPusher) throws IOException
+                                                        IXMLRPCPusher xmlrpcPusher,
+                                                        ActivityLog activityLog,
+                                                        ArrayList<ActivityLog> lock) throws IOException
    {
       ///////////////////////////////////////////////////////////////
       // Stations by city
@@ -134,10 +138,28 @@ public class ConnectorLogic
          throw new IOException("IntegreenException");
       }
 
+      synchronized (lock)
+      {
+         activityLog.report += "syncStations("
+                               + CARSHARINGSTATION_DATASOURCE
+                               + "): "
+                               + responseGetStation.getStation().length
+                               + "\n";
+      }
+
       result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE, responseVehicleDetails.getVehicle());
       if (result instanceof IntegreenException)
       {
          throw new IOException("IntegreenException");
+      }
+
+      synchronized (lock)
+      {
+         activityLog.report += "syncStations("
+                               + CARSHARINGCAR_DATASOURCE
+                               + "): "
+                               + responseVehicleDetails.getVehicle().length
+                               + "\n";
       }
       return vehicleIdsByStationIds;
    }
@@ -145,7 +167,9 @@ public class ConnectorLogic
    static void processPusDatas(ApiClient apiClient,
                                IXMLRPCPusher xmlrpcPusher,
                                HashMap<String, String[]> vehicleIdsByStationIds,
-                               long updateTime) throws IOException
+                               long updateTime,
+                               ActivityLog activityLog,
+                               ArrayList<ActivityLog> lock) throws IOException
    {
       ///////////////////////////////////////////////////////////////
       // Read vehicles occupancy and calculate summaries
@@ -179,6 +203,10 @@ public class ConnectorLogic
                                                                                                ListVehicleOccupancyByStationResponse.class);
 
             VehicleAndOccupancies[] occupancies = responseOccupancy.getVehicleAndOccupancies();
+            if (occupancies.length != vehicleIds.length) // Same number of responses as the number to requests
+            {
+               throw new IllegalStateException();
+            }
             int free = 0;
             for (VehicleAndOccupancies vehicleOccupancy : occupancies)
             {
@@ -216,16 +244,25 @@ public class ConnectorLogic
          // Write data to integreen
          ///////////////////////////////////////////////////////////////
 
-         Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, stationOccupancies.toArray());
+         Object[] stationArray = stationOccupancies.toArray();
+         Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, stationArray);
          if (result instanceof IntegreenException)
          {
             throw new IOException("IntegreenException");
          }
-
-         result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, vehicleOccupancies.toArray());
+         synchronized (lock)
+         {
+            activityLog.report += "pushData(" + CARSHARINGSTATION_DATASOURCE + "): " + stationArray.length + "\n";
+         }
+         Object[] vehicleArray = vehicleOccupancies.toArray();
+         result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, vehicleArray);
          if (result instanceof IntegreenException)
          {
             throw new IOException("IntegreenException");
+         }
+         synchronized (lock)
+         {
+            activityLog.report += "pushData(" + CARSHARINGCAR_DATASOURCE + "): " + vehicleArray.length + "\n";
          }
       }
    }

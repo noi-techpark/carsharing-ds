@@ -35,7 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 		</RollingFile>
 	</Appenders>
 	<Loggers>
-		<Logger name="it.bz.tis.integreen.carsharingbzit.tis" level="debug" additivity="false">
+		<Logger name="it.bz.tis.integreen.carsharingbzit" level="debug" additivity="false">
 			<AppenderRef ref="Console" />
 		</Logger>
 	</Loggers>
