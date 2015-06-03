@@ -3,7 +3,7 @@
 Table of content
 
 *   1\. Introduction
-*   2\. The project
+*   2\. Compiling & running
 *   3\. Configuration
 *   4\. Scheduler
 *   5\. Packages and classes
