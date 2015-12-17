@@ -20,10 +20,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package it.bz.tis.integreen.carsharingbzit;
 
 import it.bz.tis.integreen.carsharingbzit.api.ApiClient;
+import it.bz.tis.integreen.carsharingbzit.api.BoundingBox;
 import it.bz.tis.integreen.carsharingbzit.api.GetStationRequest;
 import it.bz.tis.integreen.carsharingbzit.api.GetStationResponse;
 import it.bz.tis.integreen.carsharingbzit.api.GetVehicleRequest;
 import it.bz.tis.integreen.carsharingbzit.api.GetVehicleResponse;
+import it.bz.tis.integreen.carsharingbzit.api.ListStationByBoundingBoxRequest;
 import it.bz.tis.integreen.carsharingbzit.api.ListStationsByCityRequest;
 import it.bz.tis.integreen.carsharingbzit.api.ListStationsByCityResponse;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehicleOccupancyByStationRequest;
@@ -32,7 +34,6 @@ import it.bz.tis.integreen.carsharingbzit.api.ListVehicleOccupancyByStationRespo
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsRequest;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse.StationAndVehicles;
-import it.bz.tis.integreen.dto.carsharing.*;
 import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
 import it.bz.tis.integreen.dto.DataTypeDto;
 import it.bz.tis.integreen.dto.SimpleRecordDto;
@@ -46,6 +47,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import util.IntegreenException;
 
@@ -88,20 +92,40 @@ public class ConnectorLogic
       // Stations by city
       ///////////////////////////////////////////////////////////////
 
-      ListStationsByCityRequest request = new ListStationsByCityRequest(cityUIDs);
-      ListStationsByCityResponse response = apiClient.callWebService(request, ListStationsByCityResponse.class);
-      CarsharingStationDto[] stations = response.getCityAndStations()[0].getStation();
+//      ListStationsByCityRequest request = new ListStationsByCityRequest(cityUIDs);
+//      ListStationsByCityResponse response = apiClient.callWebService(request, ListStationsByCityResponse.class);
+//      CarsharingStationDto[] stations = response.getCityAndStations()[0].getStation();
+      ///////////////////////////////////////////////////////////////
+      // Stations by Bounding Box
+      ///////////////////////////////////////////////////////////////
 
+	  List<BoundingBox> boxes = new ArrayList<BoundingBox>();
+	  boxes.add(new BoundingBox(10.375214,46.459147,11.059799,46.86113));
+	  boxes.add(new BoundingBox(11.015081,46.450277,11.555557,46.765265));
+	  boxes.add(new BoundingBox(11.458354,46.533418,11.99883,46.847924));
+	  boxes.add(new BoundingBox(11.166573,46.218327,11.521568,46.455303));
+	  boxes.add(new BoundingBox(11.092758,46.794448,11.797256,47.018653));
+	  boxes.add(new BoundingBox(11.959305,46.598506,12.423477,47.098175));
+      
+	  Set<String> stationSet = new HashSet<String>();
+	  for (BoundingBox box:boxes){
+		ListStationByBoundingBoxRequest request = new ListStationByBoundingBoxRequest(box);
+      	ListStationsByBoundingBoxResponse response = apiClient.callWebService(request, ListStationsByBoundingBoxResponse.class);
+      	if (response != null){
+	      	CarsharingStationDto[] stations = response.getStation();
+	        for (int i = 0; i < stations.length; i++)
+	        {
+	           stationSet.add(stations[i].getId());
+	        }
+      	}
+	  }
       ///////////////////////////////////////////////////////////////
       // Stations details
       ///////////////////////////////////////////////////////////////
 
-      String[] stationIds = new String[stations.length];
-      for (int i = 0; i < stations.length; i++)
-      {
-         stationIds[i] = stations[i].getId();
-      }
 
+
+      String[] stationIds = stationSet.toArray(new String[stationSet.size()]);
       GetStationRequest requestGetStation = new GetStationRequest(stationIds);
       GetStationResponse responseGetStation = apiClient.callWebService(requestGetStation, GetStationResponse.class);
 

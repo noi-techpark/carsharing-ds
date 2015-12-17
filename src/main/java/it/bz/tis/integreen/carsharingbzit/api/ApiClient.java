@@ -19,6 +19,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.api;
 
+import it.bz.tis.integreen.carsharingbzit.ListStationsByBoundingBoxResponse;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,9 +28,12 @@ import java.io.OutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
+
 import javax.net.ssl.HttpsURLConnection;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -94,7 +99,6 @@ public class ApiClient
       }
       conn.disconnect();
       String jsonResponse = new String(data.toByteArray(), "UTF-8");
-
       if (responseCode != 200)
       {
          throw new IOException(jsonResponse);
@@ -103,6 +107,8 @@ public class ApiClient
       logger.debug("callWebService(): jsonResponse:" + jsonResponse);
 
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      if ((clazz.isInstance(new ListStationsByBoundingBoxResponse()))&& ("[]").equals(jsonResponse))
+    	  return null;
       T response = mapper.readValue(new StringReader(jsonResponse), clazz);
 
       mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
