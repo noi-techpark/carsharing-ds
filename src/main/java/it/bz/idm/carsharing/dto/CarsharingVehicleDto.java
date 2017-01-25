@@ -19,10 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.idm.carsharing.dto;
 
-/**
- * 
- * @author Davide Montesin <d@vide.bz>
- */
 public class CarsharingVehicleDto extends StationDto {
 	String licensePlate;
 	String model;

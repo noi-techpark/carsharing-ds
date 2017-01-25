@@ -49,7 +49,6 @@
 			<version>2.8.6</version>
 		</dependency>
 
-
 		<!-- xml parser -->
 		<dependency>
 			<groupId>org.apache.xmlrpc</groupId>
@@ -61,12 +60,6 @@
 			<artifactId>xmlrpc-common</artifactId>
 			<version>${xmlrpc.version}</version>
 		</dependency>
-
-		<!-- <dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-log4j2</artifactId>
-		</dependency> -->
-
 	</dependencies>
 
 	<build>
