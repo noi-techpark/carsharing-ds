@@ -4,8 +4,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import it.bz.idm.carsharing.dto.CarsharingStationDto;
-import it.bz.idm.carsharing.dto.CarsharingVehicleDto;
+import it.bz.idm.carsharing.api.CarsharingStationDto;
+import it.bz.idm.carsharing.api.CarsharingVehicleDto;
 
 /**
  * class for connecting to the integreen-platform, to get and push data

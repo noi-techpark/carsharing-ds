@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.idm.carsharing.api;
 
-import it.bz.idm.carsharing.dto.StationDto;
+import it.bz.idm.carsharing.api.StationDto;
 
 /**
  * 

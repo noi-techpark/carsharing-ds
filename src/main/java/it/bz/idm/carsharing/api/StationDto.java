@@ -1,4 +1,4 @@
-package it.bz.idm.carsharing.dto;
+package it.bz.idm.carsharing.api;
 
 public class StationDto {
 	private String id;
