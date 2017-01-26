@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
-
+	private HashMap<String, String[]> vehicleIdsByStationIds;
 	private String[] cityUIDs;
 
 	// library missing
@@ -30,9 +30,9 @@ public class Scheduler {
 	@Scheduled(cron = "0 0 0 * * *") // every day at midnight
 	public void staticTask() {
 		logger.info("Static Task started");
-		HashMap<String, String[]> connectForStaticData = carsharingConnector.connectForStaticData(cityUIDs);
+		vehicleIdsByStationIds = carsharingConnector.connectForStaticData(cityUIDs);
 		// TODO correct logging and not only toString of object
-		logger.info("Stations added to integreenplatform: " + connectForStaticData.toString());
+		logger.info("Stations added to integreenplatform: " + vehicleIdsByStationIds.toString());
 		logger.info("Static Task finished");
 	}
 
@@ -43,7 +43,7 @@ public class Scheduler {
 	@Scheduled(fixedRate = 600000) // 10 minutes interval
 	public void realTimeTask() {
 		logger.info("Real Time Task");
-		carsharingConnector.connectForRealTimeData(cityUIDs);
+		carsharingConnector.connectForRealTimeData(cityUIDs, vehicleIdsByStationIds);
 		logger.info("Real Time Task finished");
 	}
 }

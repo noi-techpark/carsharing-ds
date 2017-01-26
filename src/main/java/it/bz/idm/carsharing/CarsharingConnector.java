@@ -2,7 +2,10 @@ package it.bz.idm.carsharing;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 
 import org.springframework.http.HttpMethod;
@@ -19,6 +22,9 @@ import it.bz.idm.carsharing.api.GetVehicleRequest;
 import it.bz.idm.carsharing.api.GetVehicleResponse;
 import it.bz.idm.carsharing.api.ListStationsByCityRequest;
 import it.bz.idm.carsharing.api.ListStationsByCityResponse;
+import it.bz.idm.carsharing.api.ListVehicleOccupancyByStationRequest;
+import it.bz.idm.carsharing.api.ListVehicleOccupancyByStationResponse;
+import it.bz.idm.carsharing.api.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.api.ListVehiclesByStationsRequest;
 import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse;
 import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse.StationAndVehicles;
@@ -33,8 +39,11 @@ import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse.StationAndVehicle
 @Component
 public class CarsharingConnector {
 	final static String API_URL = "https://xml.dbcarsharing-buchung.de/hal2_api/hal2_api_3.php?protocol=json";
-
 	private URI uri = null;
+	static final SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+	final static long INTERVALL = 10L * 60L * 1000L;
+	public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
+	public static final String CARSHARINGCAR_DATASOURCE = "Carsharingcar";
 
 	public CarsharingConnector() {
 		try {
@@ -74,6 +83,12 @@ public class CarsharingConnector {
 		if (stationIds != null) {
 			RequestEntity<GetStationRequest> getStationsRequest = new RequestEntity<GetStationRequest>(
 					new GetStationRequest(stationIds), HttpMethod.GET, uri);
+
+			// TODO check if this is correct
+			// HttpEntity<GetStationRequest> entity = new
+			// HttpEntity<GetStationRequest>(new
+			// GetStationRequest(stationIds),new HttpHeaders());
+
 			ResponseEntity<GetStationResponse> getStationsResponse = null;
 			if (getStationsRequest != null) {
 				getStationsResponse = restTemplate.exchange(getStationsRequest, GetStationResponse.class);
@@ -162,11 +177,113 @@ public class CarsharingConnector {
 		return vehicleIdsByStationIds;
 	}
 
-	public void connectForRealTimeData(String[] cityUIDs) {
-		
-		
-		
+	public void connectForRealTimeData(String[] cityUIDs, HashMap<String, String[]> vehicleIdsByStationIds) {
 
+		RestTemplate restTemplate = new RestTemplate();
+
+		///////////////////////////////////////////////////////////////
+		// Read vehicles occupancy and calculate summaries
+		///////////////////////////////////////////////////////////////
+
+		// TODO des isch a schmorn
+		Long updateTime = new Date().getTime();
+		String created = String.valueOf(updateTime);
+
+		// Current and forecast
+		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
+			ArrayList<HashMap<String, String>> stationOccupancies = new ArrayList<>();
+			ArrayList<HashMap<String, String>> vehicleOccupancies = new ArrayList<>();
+
+			String begin = String.valueOf(updateTime + forecast);
+			// TODO begin buffer depends on car type
+			String begin_carsharing = SIMPLE_DATE_FORMAT.format(new Date(updateTime - 30L * 60L * 1000L + forecast));
+			String end = SIMPLE_DATE_FORMAT.format(new Date(updateTime + INTERVALL + forecast));
+
+			String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
+			Arrays.sort(stationIds);
+
+			for (String stationId : stationIds) {
+				String[] vehicleIds = vehicleIdsByStationIds.get(stationId);
+				ListVehicleOccupancyByStationRequest occupancyByStationRequest = new ListVehicleOccupancyByStationRequest(
+						begin_carsharing, end, stationId, vehicleIds);
+
+				RequestEntity<ListVehicleOccupancyByStationRequest> listVehicleOccupancyByStationrequest = new RequestEntity<ListVehicleOccupancyByStationRequest>(
+						occupancyByStationRequest, HttpMethod.GET, uri);
+
+				ResponseEntity<ListVehicleOccupancyByStationResponse> listVehicleOccupancyBySationResponse = restTemplate
+						.exchange(listVehicleOccupancyByStationrequest, ListVehicleOccupancyByStationResponse.class);
+
+				ListVehicleOccupancyByStationResponse responseOccupancy = listVehicleOccupancyBySationResponse
+						.getBody();
+
+				VehicleAndOccupancies[] occupancies = responseOccupancy.getVehicleAndOccupancies();
+				if (occupancies.length != vehicleIds.length) // Same number of
+																// responses as
+																// the number to
+																// requests
+				{
+					throw new IllegalStateException();
+				}
+				int free = 0;
+				for (VehicleAndOccupancies vehicleOccupancy : occupancies) {
+					if (vehicleOccupancy.getOccupancy().length > 1) {
+						throw new IllegalStateException("Why???");
+					}
+					int state = 0; // free
+					if (vehicleOccupancy.getOccupancy().length == 1) {
+						state = 1;
+					} else {
+						free++;
+					}
+					HashMap<String, String> vehicleData = new HashMap<String, String>();
+					vehicleData.put(CarsharingVehicleDto.IDENTIFIER, vehicleOccupancy.getVehicle().getId());
+					vehicleData.put(CarsharingVehicleDto.STATE, String.valueOf(state));
+					vehicleData.put(CarsharingVehicleDto.TIMESTAMP, begin);
+					vehicleData.put(CarsharingVehicleDto.CREATED_ON, created);
+					vehicleOccupancies.add(vehicleData);
+				}
+
+				HashMap<String, String> stationData = new HashMap<String, String>();
+				stationData.put(CarsharingStationDto.IDENTIFIER, stationId);
+				stationData.put(CarsharingStationDto.VALUE_IDENTIFIER, String.valueOf(free));
+				stationData.put(CarsharingStationDto.TIMESTAMP, begin);
+				stationData.put(CarsharingStationDto.CREATED_ON, created);
+				stationOccupancies.add(stationData);
+
+			}
+
+			///////////////////////////////////////////////////////////////
+			// Write data to integreen
+			///////////////////////////////////////////////////////////////
+
+			// TODO XMLRPCPUSHER MISSING
+
+			// Object[] stationArray = stationOccupancies.toArray();
+			// Object result =
+			// xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE,
+			// stationArray);
+			// if (result instanceof IntegreenException) {
+			// throw new IOException("IntegreenException");
+			// }
+			// synchronized (lock) {
+			// activityLog.report += "pushData(" + CARSHARINGSTATION_DATASOURCE
+			// + "): " + stationArray.length + "\n";
+			// }
+			// Object[] vehicleArray = vehicleOccupancies.toArray();
+			// result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE,
+			// vehicleArray);
+			// if (result instanceof IntegreenException) {
+			// throw new IOException("IntegreenException");
+			// }
+			// synchronized (lock) {
+			// activityLog.report += "pushData(" + CARSHARINGCAR_DATASOURCE +
+			// "): " + vehicleArray.length + "\n";
+			// }
+		}
+
+		/**
+		 * old
+		 */
 		// /**
 		// * STATIONS
 		// */
