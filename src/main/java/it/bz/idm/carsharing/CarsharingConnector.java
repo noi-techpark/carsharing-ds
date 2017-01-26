@@ -61,7 +61,6 @@ public class CarsharingConnector {
 		RequestEntity<ListStationsByCityRequest> requestEntity = new RequestEntity<ListStationsByCityRequest>(
 				new ListStationsByCityRequest(cityUIDs), HttpMethod.GET, uri);
 		ResponseEntity<ListStationsByCityResponse> listStationsByCityResponse = null;
-
 		// not correct yet
 		if (requestEntity != null) {
 			listStationsByCityResponse = restTemplate.exchange(requestEntity, ListStationsByCityResponse.class);

@@ -11,7 +11,7 @@ public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private HashMap<String, String[]> vehicleIdsByStationIds;
-	private String[] cityUIDs;
+	private String[] cityUIDs = {"1000078"};
 
 	// library missing
 	// IXMLRPCPusher xmlrpcPusher;
@@ -43,7 +43,10 @@ public class Scheduler {
 	@Scheduled(fixedRate = 600000) // 10 minutes interval
 	public void realTimeTask() {
 		logger.info("Real Time Task");
-		carsharingConnector.connectForRealTimeData(cityUIDs, vehicleIdsByStationIds);
+		if (vehicleIdsByStationIds != null)
+			carsharingConnector.connectForRealTimeData(cityUIDs, vehicleIdsByStationIds);
+		else
+			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(cityUIDs);
 		logger.info("Real Time Task finished");
 	}
 }
