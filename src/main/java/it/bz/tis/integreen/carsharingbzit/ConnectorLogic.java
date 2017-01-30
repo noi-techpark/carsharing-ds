@@ -34,7 +34,12 @@ import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse.StationAndVehicles;
 import it.bz.tis.integreen.dto.carsharing.*;
 import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
-
+import it.bz.tis.integreen.dto.DataTypeDto;
+import it.bz.tis.integreen.dto.SimpleRecordDto;
+import it.bz.tis.integreen.dto.TypeMapDto;
+import it.bz.tis.integreen.dto.carsharing.CarsharingStationDto;
+import it.bz.tis.integreen.dto.carsharing.CarsharingVehicleDto;
+import it.bz.tis.integreen.util.IntegreenException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -182,9 +187,6 @@ public class ConnectorLogic
       // Current and forecast
       for (long forecast : new long[] { 0, 30L * 60L * 1000L })
       {
-         ArrayList<HashMap<String, String>> stationOccupancies = new ArrayList<>();
-         ArrayList<HashMap<String, String>> vehicleOccupancies = new ArrayList<>();
-
          String begin = String.valueOf(updateTime + forecast);
          // TODO begin buffer depends on car type
          String begin_carsharing = SIMPLE_DATE_FORMAT.format(new Date(updateTime - 30L * 60L * 1000L + forecast));
@@ -192,7 +194,8 @@ public class ConnectorLogic
 
          String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
          Arrays.sort(stationIds);
-
+         HashMap<String, TypeMapDto> stationData = new HashMap<String, TypeMapDto>();
+         HashMap<String, TypeMapDto> vehicleData = new HashMap<String, TypeMapDto>();
          for (String stationId : stationIds)
          {
             String[] vehicleIds = vehicleIdsByStationIds.get(stationId);
@@ -205,11 +208,14 @@ public class ConnectorLogic
                                                                                                ListVehicleOccupancyByStationResponse.class);
 
             VehicleAndOccupancies[] occupancies = responseOccupancy.getVehicleAndOccupancies();
+            if (occupancies== null) 
+            		continue;
             if (occupancies.length != vehicleIds.length) // Same number of responses as the number to requests
             {
                throw new IllegalStateException();
             }
             int free = 0;
+
             for (VehicleAndOccupancies vehicleOccupancy : occupancies)
             {
                if (vehicleOccupancy.getOccupancy().length > 1)
@@ -225,20 +231,27 @@ public class ConnectorLogic
                {
                   free++;
                }
-               HashMap<String, String> vehicleData = new HashMap<String, String>();
-               vehicleData.put(CarsharingVehicleDto.IDENTIFIER, vehicleOccupancy.getVehicle().getId());
-               vehicleData.put(CarsharingVehicleDto.STATE, String.valueOf(state));
-               vehicleData.put(CarsharingVehicleDto.TIMESTAMP, begin);
-               vehicleData.put(CarsharingVehicleDto.CREATED_ON, created);
-               vehicleOccupancies.add(vehicleData);
+               TypeMapDto typeMap = new TypeMapDto();
+               vehicleData.put(vehicleOccupancy.getVehicle().getId(), typeMap);
+               String type = "unknown";
+               if (begin.equals(created))
+            	   type = DataTypeDto.AVAILABILITY;
+               else
+            	   type = DataTypeDto.FUTURE_AVAILABILITY;
+               Set<SimpleRecordDto> dtos = typeMap.getRecordsByType().get(type);
+               if (dtos == null){
+            	   dtos = new HashSet<SimpleRecordDto>();
+            	   typeMap.getRecordsByType().put(type, dtos);
+               }
+               dtos.add(new SimpleRecordDto(updateTime + forecast,state+0.,600));
             }
-
-            HashMap<String, String> stationData = new HashMap<String, String>();
-            stationData.put(CarsharingStationDto.IDENTIFIER, stationId);
-            stationData.put(CarsharingStationDto.VALUE_IDENTIFIER, String.valueOf(free));
-            stationData.put(CarsharingStationDto.TIMESTAMP, begin);
-            stationData.put(CarsharingStationDto.CREATED_ON, created);
-            stationOccupancies.add(stationData);
+            
+            Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
+            TypeMapDto typeMap = new TypeMapDto();
+         	typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
+            if (begin.equals(created))
+            	dtos.add(new SimpleRecordDto(updateTime + forecast, free+0.,600));
+			stationData.put(stationId, typeMap );
 
          }
 
@@ -246,25 +259,23 @@ public class ConnectorLogic
          // Write data to integreen
          ///////////////////////////////////////////////////////////////
 
-         Object[] stationArray = stationOccupancies.toArray();
-         Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, stationArray);
+         Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, new Object[]{stationData});
          if (result instanceof IntegreenException)
          {
             throw new IOException("IntegreenException");
          }
          synchronized (lock)
          {
-            activityLog.report += "pushData(" + CARSHARINGSTATION_DATASOURCE + "): " + stationArray.length + "\n";
+            activityLog.report += "pushData(" + CARSHARINGSTATION_DATASOURCE + "): " + stationData.size()+ "\n";
          }
-         Object[] vehicleArray = vehicleOccupancies.toArray();
-         result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, vehicleArray);
+         result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, new Object[]{vehicleData});
          if (result instanceof IntegreenException)
          {
             throw new IOException("IntegreenException");
          }
          synchronized (lock)
          {
-            activityLog.report += "pushData(" + CARSHARINGCAR_DATASOURCE + "): " + vehicleArray.length + "\n";
+            activityLog.report += "pushData(" + CARSHARINGCAR_DATASOURCE + "): " + vehicleData.size() + "\n";
          }
       }
    }
