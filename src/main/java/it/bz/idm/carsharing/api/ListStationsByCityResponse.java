@@ -23,29 +23,40 @@ package it.bz.idm.carsharing.api;
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class ListStationsByCityResponse
-{
-   public static class CityAndStations
-   {
-      City      city = new City();
-      CarsharingStationDto[] station;
+public class ListStationsByCityResponse {
+	String faultCode;
+	String faultString;
+	Object [] detail;
 
-      public City getCity()
-      {
-         return this.city;
-      }
+	public static class CityAndStations {
+		City city = new City();
+		CarsharingStationDto[] station;
 
-      public CarsharingStationDto[] getStation()
-      {
-         return this.station;
-      }
-   }
+		public City getCity() {
+			return this.city;
+		}
 
-   CityAndStations[] cityAndStations;
+		public CarsharingStationDto[] getStation() {
+			return this.station;
+		}
+	}
 
-   public CityAndStations[] getCityAndStations()
-   {
-      return this.cityAndStations;
-   }
+	CityAndStations[] cityAndStations;
+
+	public CityAndStations[] getCityAndStations() {
+		return this.cityAndStations;
+	}
+
+	public String getFaultCode() {
+		return faultCode;
+	}
+
+	public String getFaultString() {
+		return faultString;
+	}
+
+	public Object[] getDetail() {
+		return detail;
+	}
 
 }

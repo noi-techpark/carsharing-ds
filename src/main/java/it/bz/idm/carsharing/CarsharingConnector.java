@@ -1,5 +1,6 @@
 package it.bz.idm.carsharing;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
@@ -8,12 +9,15 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import it.bz.idm.carsharing.api.ApiClient;
 import it.bz.idm.carsharing.api.CarsharingStationDto;
 import it.bz.idm.carsharing.api.CarsharingVehicleDto;
 import it.bz.idm.carsharing.api.GetStationRequest;
@@ -38,12 +42,13 @@ import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse.StationAndVehicle
  */
 @Component
 public class CarsharingConnector {
-	final static String API_URL = "https://xml.dbcarsharing-buchung.de/hal2_api/hal2_api_3.php?protocol=json";
+	final static String API_URL = "https://xml.dbcarsharing-buchung.de/hal2_api/hal2_api_3.php";
 	private URI uri = null;
 	static final SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 	final static long INTERVALL = 10L * 60L * 1000L;
 	public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
 	public static final String CARSHARINGCAR_DATASOURCE = "Carsharingcar";
+	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
 
 	public CarsharingConnector() {
 		try {
@@ -54,21 +59,30 @@ public class CarsharingConnector {
 		}
 	}
 
-	public HashMap<String, String[]> connectForStaticData(String[] cityUIDs) {
-		RestTemplate restTemplate = new RestTemplate();
+	public HashMap<String, String[]> connectForStaticData(String[] cityUIDs, ApiClient apiClient) throws IOException {
+		// RestTemplate restTemplate = new RestTemplate();
 
 		// get stations by city
-		RequestEntity<ListStationsByCityRequest> requestEntity = new RequestEntity<ListStationsByCityRequest>(
-				new ListStationsByCityRequest(cityUIDs), HttpMethod.GET, uri);
-		ResponseEntity<ListStationsByCityResponse> listStationsByCityResponse = null;
-		// not correct yet
-		if (requestEntity != null) {
-			listStationsByCityResponse = restTemplate.exchange(requestEntity, ListStationsByCityResponse.class);
-		}
-		CarsharingStationDto[] stations = null;
-		if (listStationsByCityResponse != null) {
-			stations = listStationsByCityResponse.getBody().getCityAndStations()[0].getStation();
-		}
+
+		ListStationsByCityRequest request = new ListStationsByCityRequest(cityUIDs);
+		ListStationsByCityResponse response = apiClient.callWebService(request, ListStationsByCityResponse.class);
+		CarsharingStationDto[] stations = response.getCityAndStations()[0].getStation();
+
+		// RequestEntity<ListStationsByCityRequest> requestEntity = new
+		// RequestEntity<ListStationsByCityRequest>(
+		// new ListStationsByCityRequest(cityUIDs), HttpMethod.GET, uri);
+		// ResponseEntity<ListStationsByCityResponse> listStationsByCityResponse
+		// = null;
+		// // not correct yet
+		// if (requestEntity != null) {
+		// listStationsByCityResponse = restTemplate.exchange(requestEntity,
+		// ListStationsByCityResponse.class);
+		// }
+		// CarsharingStationDto[] stations = null;
+		// if (listStationsByCityResponse != null) {
+		// stations =
+		// listStationsByCityResponse.getBody().getCityAndStations()[0].getStation();
+		// }
 
 		// get stattion details
 		String[] stationIds = new String[stations.length];
@@ -88,33 +102,47 @@ public class CarsharingConnector {
 			// HttpEntity<GetStationRequest>(new
 			// GetStationRequest(stationIds),new HttpHeaders());
 
-			ResponseEntity<GetStationResponse> getStationsResponse = null;
-			if (getStationsRequest != null) {
-				getStationsResponse = restTemplate.exchange(getStationsRequest, GetStationResponse.class);
-			}
+			// ResponseEntity<GetStationResponse> getStationsResponse = null;
+			// if (getStationsRequest != null) {
+			// getStationsResponse = restTemplate.exchange(getStationsRequest,
+			// GetStationResponse.class);
+			// }
+			GetStationRequest requestGetStation = new GetStationRequest(stationIds);
+			GetStationResponse responseGetStation = null;
+			responseGetStation = apiClient.callWebService(requestGetStation, GetStationResponse.class);
 
-			if (getStationsResponse != null) {
-				stationDetails = getStationsResponse.getBody();
-			}
+			// if (getStationsResponse != null) {
+			// stationDetails = getStationsResponse.getBody();
+			// }
+
+			logger.error(responseGetStation.toString());
 		}
 
 		// get vehicles by stations
 
-		RequestEntity<ListVehiclesByStationsRequest> listVehicleByStationsRequest = new RequestEntity<ListVehiclesByStationsRequest>(
-				new ListVehiclesByStationsRequest(stationIds), HttpMethod.GET, uri);
+		// RequestEntity<ListVehiclesByStationsRequest>
+		// listVehicleByStationsRequest = new
+		// RequestEntity<ListVehiclesByStationsRequest>(
+		// new ListVehiclesByStationsRequest(stationIds), HttpMethod.GET, uri);
+		//
+		// ResponseEntity<ListVehiclesByStationsResponse>
+		// listVehicleByStationsResponse = restTemplate
+		// .exchange(listVehicleByStationsRequest,
+		// ListVehiclesByStationsResponse.class);
+		//
+		// ListVehiclesByStationsResponse vehiclesByStations = null;
+		// if (listStationsByCityResponse != null)
+		// vehiclesByStations = listVehicleByStationsResponse.getBody();
 
-		ResponseEntity<ListVehiclesByStationsResponse> listVehicleByStationsResponse = restTemplate
-				.exchange(listVehicleByStationsRequest, ListVehiclesByStationsResponse.class);
-
-		ListVehiclesByStationsResponse vehiclesByStations = null;
-		if (listStationsByCityResponse != null)
-			vehiclesByStations = listVehicleByStationsResponse.getBody();
+		ListVehiclesByStationsRequest vehicles = new ListVehiclesByStationsRequest(stationIds);
+		ListVehiclesByStationsResponse responseVehicles = null;
+		responseVehicles = apiClient.callWebService(vehicles, ListVehiclesByStationsResponse.class);
 
 		// prepare vehicle details
 
 		HashMap<String, String[]> vehicleIdsByStationIds = new HashMap<>();
 		ArrayList<String> vehicleIds = new ArrayList<String>();
-		for (StationAndVehicles stationVehicles : vehiclesByStations.getStationAndVehicles()) {
+		for (StationAndVehicles stationVehicles : responseVehicles.getStationAndVehicles()) {
 			String[] tempVehicleIds = new String[stationVehicles.getVehicle().length];
 			vehicleIdsByStationIds.put(stationVehicles.getStation().getId(), tempVehicleIds);
 			for (int i = 0; i < stationVehicles.getVehicle().length; i++) {
@@ -126,15 +154,22 @@ public class CarsharingConnector {
 
 		// get vehicle details
 
-		RequestEntity<GetVehicleRequest> getvehiclerequest = new RequestEntity<GetVehicleRequest>(
-				new GetVehicleRequest(vehicleIds.toArray(new String[0])), HttpMethod.GET, uri);
+		// RequestEntity<GetVehicleRequest> getvehiclerequest = new
+		// RequestEntity<GetVehicleRequest>(
+		// new GetVehicleRequest(vehicleIds.toArray(new String[0])),
+		// HttpMethod.GET, uri);
+		//
+		// ResponseEntity<GetVehicleResponse> getVehicleResponse =
+		// restTemplate.exchange(getvehiclerequest,
+		// GetVehicleResponse.class);
+		//
+		// GetVehicleResponse vehiclesDetails = null;
+		// if (getVehicleResponse != null)
+		// vehiclesDetails = getVehicleResponse.getBody();
 
-		ResponseEntity<GetVehicleResponse> getVehicleResponse = restTemplate.exchange(getvehiclerequest,
+		GetVehicleRequest requestVehicleDetails = new GetVehicleRequest(vehicleIds.toArray(new String[0]));
+		GetVehicleResponse responseVehicleDetails = apiClient.callWebService(requestVehicleDetails,
 				GetVehicleResponse.class);
-
-		GetVehicleResponse vehiclesDetails = null;
-		if (getVehicleResponse != null)
-			vehiclesDetails = getVehicleResponse.getBody();
 
 		// write vehicel and station details to integreenPlatform
 
@@ -176,7 +211,8 @@ public class CarsharingConnector {
 		return vehicleIdsByStationIds;
 	}
 
-	public void connectForRealTimeData(String[] cityUIDs, HashMap<String, String[]> vehicleIdsByStationIds) {
+	public void connectForRealTimeData(String[] cityUIDs, HashMap<String, String[]> vehicleIdsByStationIds,
+			ApiClient apiClient) {
 
 		RestTemplate restTemplate = new RestTemplate();
 
