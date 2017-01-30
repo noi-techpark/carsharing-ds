@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 package it.bz.idm.carsharing.api;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,90 +25,101 @@ import java.io.OutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URL;
+import java.util.Properties;
 import javax.net.ssl.HttpsURLConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 
  * @author Davide Montesin <d@vide.bz>
  */
-public class ApiClient
-{
-   static final Logger logger = LoggerFactory.getLogger(ApiClient.class);
+@Component
+public class ApiClient {
+	static final Logger logger = LoggerFactory.getLogger(ApiClient.class);
 
-   String              endpoint;
-   String              user;
-   String              password;
 
-   public ApiClient(String endpoint, String user, String password)
-   {
-      this.endpoint = endpoint;
-      this.user = user;
-      this.password = password;
-   }
+	String endpoint;
+	String user;
+	String password;
 
-   public <T> T callWebService(ServiceRequest request, Class<T> clazz) throws IOException
-   {
+	public ApiClient() {
+		Resource resource = new ClassPathResource("application.properties");
+		Properties properties = null;
+		try {
+			properties = PropertiesLoaderUtils.loadProperties(resource);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
-      request.request.technicalUser.username = this.user;
-      request.request.technicalUser.password = this.password;
+		this.endpoint = properties.getProperty("cred.endpoint");
+		this.user = properties.getProperty("cred.user");
+		this.password = properties.getProperty("cred.password");
+	}
 
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NONE).setVisibility(PropertyAccessor.IS_GETTER,
-                                                                                  Visibility.PUBLIC_ONLY).setVisibility(PropertyAccessor.GETTER,
-                                                                                                                        Visibility.PUBLIC_ONLY).setVisibility(PropertyAccessor.SETTER,
-                                                                                                                                                              Visibility.PUBLIC_ONLY);
-      mapper.enable(SerializationFeature.INDENT_OUTPUT);
+	public <T> T callWebService(ServiceRequest request, Class<T> clazz) throws IOException {
 
-      StringWriter sw = new StringWriter();
-      mapper.writeValue(sw, request);
+		request.request.technicalUser.username = this.user;
+		request.request.technicalUser.password = this.password;
 
-      String requestJson = sw.getBuffer().toString();
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NONE)
+				.setVisibility(PropertyAccessor.IS_GETTER, Visibility.PUBLIC_ONLY)
+				.setVisibility(PropertyAccessor.GETTER, Visibility.PUBLIC_ONLY)
+				.setVisibility(PropertyAccessor.SETTER, Visibility.PUBLIC_ONLY);
+		mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
-      logger.debug("callWebService(): jsonRequest:" + requestJson);
+		StringWriter sw = new StringWriter();
+		mapper.writeValue(sw, request);
 
-      URL url = new URL(this.endpoint);
-      HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-      conn.setRequestMethod("POST");
-      conn.setDoOutput(true);
-      OutputStream out = conn.getOutputStream();
-      out.write(requestJson.getBytes("UTF-8"));
-      out.flush();
-      int responseCode = conn.getResponseCode();
+		String requestJson = sw.getBuffer().toString();
 
-      InputStream input = conn.getInputStream();
+		logger.debug("callWebService(): jsonRequest:" + requestJson);
 
-      ByteArrayOutputStream data = new ByteArrayOutputStream();
-      int len;
-      byte[] buf = new byte[50000];
-      while ((len = input.read(buf)) > 0)
-      {
-         data.write(buf, 0, len);
-      }
-      conn.disconnect();
-      String jsonResponse = new String(data.toByteArray(), "UTF-8");
+		URL url = new URL(this.endpoint);
+		HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+		conn.setRequestMethod("POST");
+		conn.setDoOutput(true);
+		OutputStream out = conn.getOutputStream();
+		out.write(requestJson.getBytes("UTF-8"));
+		out.flush();
+		int responseCode = conn.getResponseCode();
 
-      if (responseCode != 200)
-      {
-         throw new IOException(jsonResponse);
-      }
+		InputStream input = conn.getInputStream();
 
-      logger.debug("callWebService(): jsonResponse:" + jsonResponse);
+		ByteArrayOutputStream data = new ByteArrayOutputStream();
+		int len;
+		byte[] buf = new byte[50000];
+		while ((len = input.read(buf)) > 0) {
+			data.write(buf, 0, len);
+		}
+		conn.disconnect();
+		String jsonResponse = new String(data.toByteArray(), "UTF-8");
 
-//      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-      T response = mapper.readValue(new StringReader(jsonResponse), clazz);
+		if (responseCode != 200) {
+			throw new IOException(jsonResponse);
+		}
 
-//      mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-      sw = new StringWriter();
-      mapper.writeValue(sw, response);
-      logger.debug("callWebService(): parsed response into " + response.getClass().getName() + ":" + sw.toString());
+		logger.debug("callWebService(): jsonResponse:" + jsonResponse);
 
-      return response;
-   }
+		mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		T response = mapper.readValue(new StringReader(jsonResponse), clazz);
+
+	mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+		sw = new StringWriter();
+		mapper.writeValue(sw, response);
+		logger.debug("callWebService(): parsed response into " + response.getClass().getName() + ":" + sw.toString());
+
+		return response;
+	}
 }

@@ -43,9 +43,9 @@
 		</dependency>
 
 		<dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-        </dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
 
 		<!-- xml parser -->
 		<dependency>
@@ -58,6 +58,15 @@
 			<artifactId>xmlrpc-common</artifactId>
 			<version>${xmlrpc.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.ws</groupId>
+			<artifactId>spring-ws-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-configuration-processor</artifactId>
+			<optional>true</optional>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -68,6 +77,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
-
 </project>

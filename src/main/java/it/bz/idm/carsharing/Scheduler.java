@@ -1,6 +1,7 @@
 package it.bz.idm.carsharing;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,10 +15,7 @@ public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private HashMap<String, String[]> vehicleIdsByStationIds;
-	private String[] cityUIDs = { "1000078" };
-	final static String API_URL = "https://xml.dbcarsharing-buchung.de/hal2_api/hal2_api_3.php?protocol=json";
-	final static String USER = "";
-	final static String PASSWORD = "";
+	private String[] cityUIDs = { "1000087" };
 
 	private ApiClient apiClient = null;
 
@@ -28,8 +26,7 @@ public class Scheduler {
 
 	public Scheduler() {
 		carsharingConnector = new CarsharingConnector();
-		apiClient = new ApiClient(API_URL, USER, PASSWORD);
-		logger.info("Scheduler initialized");
+		apiClient = new ApiClient();
 	}
 
 	/**
@@ -38,15 +35,18 @@ public class Scheduler {
 	 */
 	@Scheduled(cron = "0 0 0 * * *") // every day at midnight
 	public void staticTask() {
+
 		logger.info("Static Task started");
 		try {
-			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(cityUIDs,apiClient);
+			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(cityUIDs, apiClient);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		// TODO correct logging and not only toString of object
-		logger.info("Stations added to integreenplatform: " + vehicleIdsByStationIds.toString());
+		for (String[] strings : vehicleIdsByStationIds.values())
+			for (String string : strings)
+				logger.info("Stations added to integreenplatform: " + string);
 		logger.info("Static Task finished");
 	}
 
@@ -56,12 +56,13 @@ public class Scheduler {
 	 */
 	@Scheduled(fixedRate = 600000) // 10 minutes interval
 	public void realTimeTask() {
+
 		logger.info("Real Time Task");
 		if (vehicleIdsByStationIds != null)
-			carsharingConnector.connectForRealTimeData(cityUIDs, vehicleIdsByStationIds,apiClient);
+			carsharingConnector.connectForRealTimeData(cityUIDs, vehicleIdsByStationIds, apiClient);
 		else
 			try {
-				vehicleIdsByStationIds = carsharingConnector.connectForStaticData(cityUIDs,apiClient);
+				vehicleIdsByStationIds = carsharingConnector.connectForStaticData(cityUIDs, apiClient);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

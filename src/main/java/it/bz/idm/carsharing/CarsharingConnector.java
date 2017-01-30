@@ -42,7 +42,7 @@ import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse.StationAndVehicle
  */
 @Component
 public class CarsharingConnector {
-	final static String API_URL = "https://xml.dbcarsharing-buchung.de/hal2_api/hal2_api_3.php";
+	final static String API_URL = "https://xml.dbcarsharing-buchung.de/hal2_api/hal2_api_3.php?protocol=json";
 	private URI uri = null;
 	static final SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 	final static long INTERVALL = 10L * 60L * 1000L;
@@ -66,7 +66,9 @@ public class CarsharingConnector {
 
 		ListStationsByCityRequest request = new ListStationsByCityRequest(cityUIDs);
 		ListStationsByCityResponse response = apiClient.callWebService(request, ListStationsByCityResponse.class);
-		CarsharingStationDto[] stations = response.getCityAndStations()[0].getStation();
+		CarsharingStationDto[] stations = null;
+		if (response.getCityAndStations() != null)
+			stations = response.getCityAndStations()[0].getStation();
 
 		// RequestEntity<ListStationsByCityRequest> requestEntity = new
 		// RequestEntity<ListStationsByCityRequest>(
@@ -85,8 +87,9 @@ public class CarsharingConnector {
 		// }
 
 		// get stattion details
-		String[] stationIds = new String[stations.length];
+		String[] stationIds = null;
 		if (stations != null) {
+			stationIds = new String[stations.length];
 			for (int i = 0; i < stations.length; i++) {
 				stationIds[i] = stations[i].getId();
 			}

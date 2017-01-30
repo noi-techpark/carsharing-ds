@@ -27,6 +27,13 @@ public class ListStationsByCityResponse {
 	String faultCode;
 	String faultString;
 	Object [] detail;
+	CityAndStations[] cityAndStations;
+	Object [][] START_ARRAY;
+	
+
+	public Object[] getSTART_ARRAY() {
+		return START_ARRAY;
+	}
 
 	public static class CityAndStations {
 		City city = new City();
@@ -41,7 +48,6 @@ public class ListStationsByCityResponse {
 		}
 	}
 
-	CityAndStations[] cityAndStations;
 
 	public CityAndStations[] getCityAndStations() {
 		return this.cityAndStations;
