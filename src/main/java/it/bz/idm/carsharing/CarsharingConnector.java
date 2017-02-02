@@ -1,37 +1,45 @@
 package it.bz.idm.carsharing;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
+
+import javax.net.ssl.HttpsURLConnection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequest;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RequestCallback;
 import org.springframework.web.client.RestTemplate;
 
-import it.bz.idm.carsharing.api.ApiClient;
-import it.bz.idm.carsharing.api.CarsharingStationDto;
-import it.bz.idm.carsharing.api.CarsharingVehicleDto;
-import it.bz.idm.carsharing.api.GetStationRequest;
-import it.bz.idm.carsharing.api.GetStationResponse;
-import it.bz.idm.carsharing.api.GetVehicleRequest;
-import it.bz.idm.carsharing.api.GetVehicleResponse;
-import it.bz.idm.carsharing.api.ListStationsByCityRequest;
-import it.bz.idm.carsharing.api.ListStationsByCityResponse;
-import it.bz.idm.carsharing.api.ListVehicleOccupancyByStationRequest;
-import it.bz.idm.carsharing.api.ListVehicleOccupancyByStationResponse;
-import it.bz.idm.carsharing.api.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
-import it.bz.idm.carsharing.api.ListVehiclesByStationsRequest;
-import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse;
-import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse.StationAndVehicles;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
+import it.bz.idm.carsharing.dto.CountryDto;
+import it.bz.idm.carsharing.dto.ListCountriesRequestDto;
+import it.bz.idm.carsharing.dto.ListCountriesResponseDto;
+import it.bz.idm.carsharing.wsdl.UserAuth;
 
 /**
  * class for connecting to the carsharing-platform, get the data abd push them
@@ -42,337 +50,275 @@ import it.bz.idm.carsharing.api.ListVehiclesByStationsResponse.StationAndVehicle
  */
 @Component
 public class CarsharingConnector {
-	final static String API_URL = "https://xml.dbcarsharing-buchung.de/hal2_api/hal2_api_3.php?protocol=json";
-	private URI uri = null;
 	static final SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 	final static long INTERVALL = 10L * 60L * 1000L;
 	public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
 	public static final String CARSHARINGCAR_DATASOURCE = "Carsharingcar";
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
 
+	String endpoint;
+	String user;
+	String password;
+
+	@Autowired
+	HAL2ApiClientConfiguration hal2ApiClientConfiguration;
+
+	protected UserAuth userAuthentificationType = null;
+
 	public CarsharingConnector() {
+		Resource resource = new ClassPathResource("application.properties");
+		Properties properties = null;
 		try {
-			uri = new URI(API_URL);
-		} catch (URISyntaxException e) {
+			properties = PropertiesLoaderUtils.loadProperties(resource);
+		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		this.endpoint = properties.getProperty("cred.endpoint");
+		this.user = properties.getProperty("cred.user");
+		this.password = properties.getProperty("cred.password");
+
+		userAuthentificationType = new UserAuth();
+		userAuthentificationType.setUsername(user);
+		userAuthentificationType.setPassword(password);
+
 	}
 
-	public HashMap<String, String[]> connectForStaticData(String[] cityUIDs, ApiClient apiClient) throws IOException {
+	public HashMap<String, String[]> connectForStaticData() throws IOException {
+
+		ListCountriesRequestDto listCountriesRequestDto = new ListCountriesRequestDto(userAuthentificationType);
+
+		SimpleHttpClient client = new SimpleHttpClient();
+		ListCountriesResponseDto responseDto = (ListCountriesResponseDto) client.get(listCountriesRequestDto, endpoint,
+				ListCountriesResponseDto.class);
+
+		System.out.println(responseDto);
+
 		// RestTemplate restTemplate = new RestTemplate();
-
-		// get stations by city
-
-		ListStationsByCityRequest request = new ListStationsByCityRequest(cityUIDs);
-		ListStationsByCityResponse response = apiClient.callWebService(request, ListStationsByCityResponse.class);
-		CarsharingStationDto[] stations = null;
-		if (response.getCityAndStations() != null)
-			stations = response.getCityAndStations()[0].getStation();
-
-		// RequestEntity<ListStationsByCityRequest> requestEntity = new
-		// RequestEntity<ListStationsByCityRequest>(
-		// new ListStationsByCityRequest(cityUIDs), HttpMethod.GET, uri);
-		// ResponseEntity<ListStationsByCityResponse> listStationsByCityResponse
-		// = null;
-		// // not correct yet
-		// if (requestEntity != null) {
-		// listStationsByCityResponse = restTemplate.exchange(requestEntity,
-		// ListStationsByCityResponse.class);
-		// }
-		// CarsharingStationDto[] stations = null;
-		// if (listStationsByCityResponse != null) {
-		// stations =
-		// listStationsByCityResponse.getBody().getCityAndStations()[0].getStation();
-		// }
-
-		// get stattion details
-		String[] stationIds = null;
-		if (stations != null) {
-			stationIds = new String[stations.length];
-			for (int i = 0; i < stations.length; i++) {
-				stationIds[i] = stations[i].getId();
-			}
-		}
-
-		GetStationResponse stationDetails = null;
-		if (stationIds != null) {
-			RequestEntity<GetStationRequest> getStationsRequest = new RequestEntity<GetStationRequest>(
-					new GetStationRequest(stationIds), HttpMethod.GET, uri);
-
-			// TODO check if this is correct
-			// HttpEntity<GetStationRequest> entity = new
-			// HttpEntity<GetStationRequest>(new
-			// GetStationRequest(stationIds),new HttpHeaders());
-
-			// ResponseEntity<GetStationResponse> getStationsResponse = null;
-			// if (getStationsRequest != null) {
-			// getStationsResponse = restTemplate.exchange(getStationsRequest,
-			// GetStationResponse.class);
-			// }
-			GetStationRequest requestGetStation = new GetStationRequest(stationIds);
-			GetStationResponse responseGetStation = null;
-			responseGetStation = apiClient.callWebService(requestGetStation, GetStationResponse.class);
-
-			// if (getStationsResponse != null) {
-			// stationDetails = getStationsResponse.getBody();
-			// }
-
-			logger.error(responseGetStation.toString());
-		}
-
-		// get vehicles by stations
-
-		// RequestEntity<ListVehiclesByStationsRequest>
-		// listVehicleByStationsRequest = new
-		// RequestEntity<ListVehiclesByStationsRequest>(
-		// new ListVehiclesByStationsRequest(stationIds), HttpMethod.GET, uri);
 		//
-		// ResponseEntity<ListVehiclesByStationsResponse>
-		// listVehicleByStationsResponse = restTemplate
-		// .exchange(listVehicleByStationsRequest,
-		// ListVehiclesByStationsResponse.class);
+		// // Create a list for the message converters
+		// List<HttpMessageConverter<?>> messageConverters = new
+		// ArrayList<HttpMessageConverter<?>>();
+		// // Add the Jackson Message converter
+		// messageConverters.add(new MappingJackson2HttpMessageConverter());
+		// // Add the message converters to the restTemplate
+		// restTemplate.setMessageConverters(messageConverters);
+		// HttpEntity<ListCountriesRequestDto> entity = new
+		// HttpEntity<ListCountriesRequestDto>(listCountriesRequestDto);
+		// restTemplate.postForEntity(endpoint, listCountriesRequestDto,
+		// Object.class);
+		// ListCountriesResponseDto body = postForEntity.getBody();
+		// ArrayList<CountryDto> country2 = body.getCountry();
+		// if(country2 == null)
+		// logger.error("NO COUNTRES");
+		// else
+		// for(CountryDto countryDto : country2)
+		// System.out.println(countryDto.getName());
+
+		// Hal2ApiClient hal2ApiClient =
+		// hal2ApiClientConfiguration.hal2ApiClient(hal2ApiClientConfiguration.marshaller());
+		// ListCountriesResponseDto countryFromClient =
+		// hal2ApiClient.getCountry(endpoint, userAuthentificationType);
 		//
-		// ListVehiclesByStationsResponse vehiclesByStations = null;
-		// if (listStationsByCityResponse != null)
-		// vehiclesByStations = listVehicleByStationsResponse.getBody();
-
-		ListVehiclesByStationsRequest vehicles = new ListVehiclesByStationsRequest(stationIds);
-		ListVehiclesByStationsResponse responseVehicles = null;
-		responseVehicles = apiClient.callWebService(vehicles, ListVehiclesByStationsResponse.class);
-
-		// prepare vehicle details
-
-		HashMap<String, String[]> vehicleIdsByStationIds = new HashMap<>();
-		ArrayList<String> vehicleIds = new ArrayList<String>();
-		for (StationAndVehicles stationVehicles : responseVehicles.getStationAndVehicles()) {
-			String[] tempVehicleIds = new String[stationVehicles.getVehicle().length];
-			vehicleIdsByStationIds.put(stationVehicles.getStation().getId(), tempVehicleIds);
-			for (int i = 0; i < stationVehicles.getVehicle().length; i++) {
-				CarsharingVehicleDto carsharingVehicleDto = stationVehicles.getVehicle()[i];
-				vehicleIds.add(carsharingVehicleDto.getId());
-				// vehicleIds[i] = carsharingVehicleDto.getId();
-			}
-		}
-
-		// get vehicle details
-
-		// RequestEntity<GetVehicleRequest> getvehiclerequest = new
-		// RequestEntity<GetVehicleRequest>(
-		// new GetVehicleRequest(vehicleIds.toArray(new String[0])),
-		// HttpMethod.GET, uri);
-		//
-		// ResponseEntity<GetVehicleResponse> getVehicleResponse =
-		// restTemplate.exchange(getvehiclerequest,
-		// GetVehicleResponse.class);
-		//
-		// GetVehicleResponse vehiclesDetails = null;
-		// if (getVehicleResponse != null)
-		// vehiclesDetails = getVehicleResponse.getBody();
-
-		GetVehicleRequest requestVehicleDetails = new GetVehicleRequest(vehicleIds.toArray(new String[0]));
-		GetVehicleResponse responseVehicleDetails = apiClient.callWebService(requestVehicleDetails,
-				GetVehicleResponse.class);
-
-		// write vehicel and station details to integreenPlatform
-
-		// TODO IXMLRPCPusher missing
-
-		// IXMLRPCPusher xmlrpcPusher;
-		// Object result =
-		// xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE,
-		// responseGetStation.getStation());
-		// if (result instanceof IntegreenException)
-		// {
-		// throw new IOException("IntegreenException");
-		// }
-		//
-		// synchronized (lock)
-		// {
-		// activityLog.report += "syncStations("
-		// + CARSHARINGSTATION_DATASOURCE
-		// + "): "
-		// + responseGetStation.getStation().length
-		// + "\n";
-		// }
-		//
-		// result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE,
-		// responseVehicleDetails.getVehicle());
-		// if (result instanceof IntegreenException)
-		// {
-		// throw new IOException("IntegreenException");
-		// }
-		//
-		// synchronized (lock)
-		// {
-		// activityLog.report += "syncStations("
-		// + CARSHARINGCAR_DATASOURCE
-		// + "): "
-		// + responseVehicleDetails.getVehicle().length
-		// + "\n";
-		// }
-		return vehicleIdsByStationIds;
-	}
-
-	public void connectForRealTimeData(String[] cityUIDs, HashMap<String, String[]> vehicleIdsByStationIds,
-			ApiClient apiClient) {
-
-		RestTemplate restTemplate = new RestTemplate();
-
-		///////////////////////////////////////////////////////////////
-		// Read vehicles occupancy and calculate summaries
-		///////////////////////////////////////////////////////////////
-
-		// TODO des isch a schmorn
-		Long updateTime = new Date().getTime();
-		String created = String.valueOf(updateTime);
-
-		// Current and forecast
-		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
-			ArrayList<HashMap<String, String>> stationOccupancies = new ArrayList<>();
-			ArrayList<HashMap<String, String>> vehicleOccupancies = new ArrayList<>();
-
-			String begin = String.valueOf(updateTime + forecast);
-			// TODO begin buffer depends on car type
-			String begin_carsharing = SIMPLE_DATE_FORMAT.format(new Date(updateTime - 30L * 60L * 1000L + forecast));
-			String end = SIMPLE_DATE_FORMAT.format(new Date(updateTime + INTERVALL + forecast));
-
-			String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
-			Arrays.sort(stationIds);
-
-			for (String stationId : stationIds) {
-				String[] vehicleIds = vehicleIdsByStationIds.get(stationId);
-				ListVehicleOccupancyByStationRequest occupancyByStationRequest = new ListVehicleOccupancyByStationRequest(
-						begin_carsharing, end, stationId, vehicleIds);
-
-				RequestEntity<ListVehicleOccupancyByStationRequest> listVehicleOccupancyByStationrequest = new RequestEntity<ListVehicleOccupancyByStationRequest>(
-						occupancyByStationRequest, HttpMethod.GET, uri);
-
-				ResponseEntity<ListVehicleOccupancyByStationResponse> listVehicleOccupancyBySationResponse = restTemplate
-						.exchange(listVehicleOccupancyByStationrequest, ListVehicleOccupancyByStationResponse.class);
-
-				ListVehicleOccupancyByStationResponse responseOccupancy = listVehicleOccupancyBySationResponse
-						.getBody();
-
-				VehicleAndOccupancies[] occupancies = responseOccupancy.getVehicleAndOccupancies();
-				if (occupancies.length != vehicleIds.length) // Same number of
-																// responses as
-																// the number to
-																// requests
-				{
-					throw new IllegalStateException();
-				}
-				int free = 0;
-				for (VehicleAndOccupancies vehicleOccupancy : occupancies) {
-					if (vehicleOccupancy.getOccupancy().length > 1) {
-						throw new IllegalStateException("Why???");
-					}
-					int state = 0; // free
-					if (vehicleOccupancy.getOccupancy().length == 1) {
-						state = 1;
-					} else {
-						free++;
-					}
-					HashMap<String, String> vehicleData = new HashMap<String, String>();
-					vehicleData.put(CarsharingVehicleDto.IDENTIFIER, vehicleOccupancy.getVehicle().getId());
-					vehicleData.put(CarsharingVehicleDto.STATE, String.valueOf(state));
-					vehicleData.put(CarsharingVehicleDto.TIMESTAMP, begin);
-					vehicleData.put(CarsharingVehicleDto.CREATED_ON, created);
-					vehicleOccupancies.add(vehicleData);
-				}
-
-				HashMap<String, String> stationData = new HashMap<String, String>();
-				stationData.put(CarsharingStationDto.IDENTIFIER, stationId);
-				stationData.put(CarsharingStationDto.VALUE_IDENTIFIER, String.valueOf(free));
-				stationData.put(CarsharingStationDto.TIMESTAMP, begin);
-				stationData.put(CarsharingStationDto.CREATED_ON, created);
-				stationOccupancies.add(stationData);
-
-			}
-
-			///////////////////////////////////////////////////////////////
-			// Write data to integreen
-			///////////////////////////////////////////////////////////////
-
-			// TODO XMLRPCPUSHER MISSING
-
-			// Object[] stationArray = stationOccupancies.toArray();
-			// Object result =
-			// xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE,
-			// stationArray);
-			// if (result instanceof IntegreenException) {
-			// throw new IOException("IntegreenException");
-			// }
-			// synchronized (lock) {
-			// activityLog.report += "pushData(" + CARSHARINGSTATION_DATASOURCE
-			// + "): " + stationArray.length + "\n";
-			// }
-			// Object[] vehicleArray = vehicleOccupancies.toArray();
-			// result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE,
-			// vehicleArray);
-			// if (result instanceof IntegreenException) {
-			// throw new IOException("IntegreenException");
-			// }
-			// synchronized (lock) {
-			// activityLog.report += "pushData(" + CARSHARINGCAR_DATASOURCE +
-			// "): " + vehicleArray.length + "\n";
-			// }
-		}
+		// ArrayList<CountryDto> country2 = countryFromClient.getCountry();
 
 		/**
-		 * old
+		 * WORKS
 		 */
-		// /**
-		// * STATIONS
-		// */
-		//
-		// // for new stations
-		// List<CarsharingStationDto> newCarsharingStations = new ArrayList<>();
-		//
-		// for (int i = 0; i < apiCarsharingStations.size(); i++) {
-		// // don't know if they are sorted
-		// if (integreenCarsharingStations.get(i) != null)
-		// if
-		// (!apiCarsharingStations.get(i).getId().equals(integreenCarsharingStations.get(i).getId()))
-		// newCarsharingStations.add(apiCarsharingStations.get(0));
-		// else
-		// oldIntegreenCarsharingStation.remove(integreenCarsharingStations.get(i));
-		// }
-		//
-		// if (oldIntegreenCarsharingStation.size() > 0) {
-		// // the stations of this list are no longer available
-		// integreenConnector.removeCarsharingStations(oldIntegreenCarsharingStation);
-		// }
-		//
-		// if (newCarsharingStations.size() > 0)
-		// // new stations are available
-		// integreenConnector.pushCarsharingStations(newCarsharingStations);
-		//
-		// /**
-		// * CARS
-		// */
-		// // for new cars
-		// List<CarsharingVehicleDto> newCarsharingVehicles = new ArrayList<>();
-		//
-		// for (int i = 0; i < apiCarsharingVehicles.size(); i++) {
-		// // don't know if they are sorted
-		// if (integreenCarsharingVehicles.get(i) != null)
-		// if
-		// (!apiCarsharingVehicles.get(i).getId().equals(integreenCarsharingVehicles.get(i).getId()))
-		// newCarsharingVehicles.add(apiCarsharingVehicles.get(0));
-		// else
-		// oldIntegreenCarsharingVehicle.remove(integreenCarsharingVehicles.get(i));
-		// }
-		//
-		// if (oldIntegreenCarsharingVehicle.size() > 0) {
-		// // the stations of this list are no longer available
-		// integreenConnector.removeCarsharingVehicles(oldIntegreenCarsharingVehicle);
-		// }
-		//
-		// if (newCarsharingVehicles.size() > 0)
-		// // new stations are available
-		// integreenConnector.pushCarsharingVehicles(newCarsharingVehicles);
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NONE)
+				.setVisibility(PropertyAccessor.IS_GETTER, Visibility.PUBLIC_ONLY)
+				.setVisibility(PropertyAccessor.GETTER, Visibility.PUBLIC_ONLY)
+				.setVisibility(PropertyAccessor.SETTER, Visibility.PUBLIC_ONLY);
+		mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
+		StringWriter sw = new StringWriter();
+		mapper.writeValue(sw, listCountriesRequestDto);
+
+		String requestJson = sw.getBuffer().toString();
+
+		logger.debug("callWebService(): jsonRequest:" + requestJson);
+
+		URL url = new URL(this.endpoint);
+		HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+		conn.setRequestMethod("POST");
+		conn.setDoOutput(true);
+		OutputStream out = conn.getOutputStream();
+		out.write(requestJson.getBytes("UTF-8"));
+		out.flush();
+		int responseCode = conn.getResponseCode();
+
+		InputStream input = conn.getInputStream();
+
+		ByteArrayOutputStream data = new ByteArrayOutputStream();
+		int len;
+		byte[] buf = new byte[50000];
+		while ((len = input.read(buf)) > 0) {
+			data.write(buf, 0, len);
+		}
+		conn.disconnect();
+		String jsonResponse = new String(data.toByteArray(), "UTF-8");
+		if (responseCode != 200) {
+			throw new IOException(jsonResponse);
+		}
+
+		logger.debug("callWebService(): jsonResponse:" + jsonResponse);
+
+		ListCountriesResponseDto response = mapper.readValue(new StringReader(jsonResponse),
+				ListCountriesResponseDto.class);
+
+		sw = new StringWriter();
+		mapper.writeValue(sw, response);
+		logger.debug("callWebService(): parsed response into " + response.getClass().getName() + ":" + sw.toString());
+
+		List<CountryDto> countires = response.getCountry();
+		if (countires != null && countires.size() > 0)
+			for (CountryDto country : countires)
+				System.out.println(country.getName());
+		else
+			System.err.println("NO COUNTRYS FOUND");
+
+		/**
+		 * WORKS
+		 */
+
+		// List<BoundingBox> boxes = new ArrayList<BoundingBox>();
+		// boxes.add(new BoundingBox(10.375214, 46.459147, 11.059799,
+		// 46.86113));
+		// boxes.add(new BoundingBox(11.015081, 46.450277, 11.555557,
+		// 46.765265));
+		// boxes.add(new BoundingBox(11.458354, 46.533418, 11.99883,
+		// 46.847924));
+		// boxes.add(new BoundingBox(11.166573, 46.218327, 11.521568,
+		// 46.455303));
+		// boxes.add(new BoundingBox(11.092758, 46.794448, 11.797256,
+		// 47.018653));
+		// boxes.add(new BoundingBox(11.959305, 46.598506, 12.423477,
+		// 47.098175));
+
+		// List<BoundingBox> boxesType = new ArrayList<BoundingBox>();
+		// BoundingBox boundingBox = new BoundingBox();
+		// GeoPos geoPosTypeWS = new GeoPos();
+		// geoPosTypeWS.setLat(46.86113);
+		// geoPosTypeWS.setLon(10.375214);
+		// boundingBox.setGeoPosWS(geoPosTypeWS);
+		//
+		// GeoPos geoPosTypeEN = new GeoPos();
+		// geoPosTypeEN.setLat(46.459147);
+		// geoPosTypeEN.setLon(11.059799);
+		// boundingBox.setGeoPosEN(geoPosTypeEN);
+		// boxesType.add(boundingBox);
+		//
+		// ListStationsByGeoPosRequestDto stationsByGeoPosRequest = new
+		// ListStationsByGeoPosRequestDto(boundingBox);
+		//
+		//
+		// ObjectMapper mapper = new ObjectMapper();
+		// mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NONE)
+		// .setVisibility(PropertyAccessor.IS_GETTER, Visibility.PUBLIC_ONLY)
+		// .setVisibility(PropertyAccessor.GETTER, Visibility.PUBLIC_ONLY)
+		// .setVisibility(PropertyAccessor.SETTER, Visibility.PUBLIC_ONLY);
+		// mapper.enable(SerializationFeature.INDENT_OUTPUT);
+		//
+		// StringWriter sw = new StringWriter();
+		// mapper.writeValue(sw, stationsByGeoPosRequest);
+		//
+		// String requestJson = sw.getBuffer().toString();
+		//
+		// logger.debug("callWebService(): jsonRequest:" + requestJson);
+		//
+		// URL url = new URL(this.endpoint);
+		// HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+		// conn.setRequestMethod("POST");
+		// conn.setDoOutput(true);
+		// OutputStream out = conn.getOutputStream();
+		// out.write(requestJson.getBytes("UTF-8"));
+		// out.flush();
+		// int responseCode = conn.getResponseCode();
+		//
+		// InputStream input = conn.getInputStream();
+		//
+		// ByteArrayOutputStream data = new ByteArrayOutputStream();
+		// int len;
+		// byte[] buf = new byte[50000];
+		// while ((len = input.read(buf)) > 0) {
+		// data.write(buf, 0, len);
+		// }
+		// conn.disconnect();
+		// String jsonResponse = new String(data.toByteArray(), "UTF-8");
+		// if (responseCode != 200) {
+		// throw new IOException(jsonResponse);
+		// }
+		//
+		// logger.debug("callWebService(): jsonResponse:" + jsonResponse);
+		//
+		// mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+		// false);
+		// ListStationsByGeoPosResponseDto response = mapper.readValue(new
+		// StringReader(jsonResponse),
+		// ListStationsByGeoPosResponseDto.class);
+		//
+		// mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+		// sw = new StringWriter();
+		// mapper.writeValue(sw, response);
+		// logger.debug("callWebService(): parsed response into " +
+		// response.getClass().getName() + ":" + sw.toString());
+		//
+		// List<Station> stations = response.getStation();
+		// if (stations != null && stations.size() > 0)
+		// for (Station station : stations)
+		// System.out.println(station.getName());
+		// else
+		// System.err.println("NO STATIONS FOUND");
+
+		//
+		// ResponseEntity<ListStationsByGeoPosResponseDto> exchange =
+		// restTemplate.exchange(endpoint, HttpMethod.GET,
+		// entity, ListStationsByGeoPosResponseDto.class);
+
+		// if (exchange == null)
+		// System.out.println("NO");
+		// else
+		// System.out.println("YES");
+
+		/**
+		 * halapiclient
+		 */
+		// List<BoundingBox> boxesType = new ArrayList<BoundingBox>();
+		// BoundingBox boundingBox = new BoundingBox();
+		// GeoPos geoPosTypeWS = new GeoPos();
+		// geoPosTypeWS.setLat(46.86113);
+		// geoPosTypeWS.setLon(10.375214);
+		// boundingBox.setGeoPosWS(geoPosTypeWS);
+		//
+		// GeoPos geoPosTypeEN = new GeoPos();
+		// geoPosTypeEN.setLat(46.459147);
+		// geoPosTypeEN.setLon(11.059799);
+		// boundingBox.setGeoPosEN(geoPosTypeEN);
+		// boxesType.add(boundingBox);
+		//
+		// if(apiClient == null){
+		// HAL2ApiClientConfiguration apiClientConfiguration = new
+		// HAL2ApiClientConfiguration();
+		// apiClient =
+		// apiClientConfiguration.hal2ApiClient(apiClientConfiguration.marshaller());
+		// }
+		//
+		// ListStationsByGeoPosResponse stationsByGeoPos =
+		// apiClient.getStationsByGeoPos(endpoint, boundingBox,
+		// userAuthentificationType);
+		//
+		// if (stationsByGeoPos == null)
+		// logger.error("ERROR in listStationsByGeoPos Request");
+		// else
+		// logger.info("yeah");
+
+		return null;
 	}
 
+	public void connectForRealTimeData(String[] cityUIDs, HashMap<String, String[]> vehicleIdsByStationIds)
+			throws IOException {
+
+	}
 }

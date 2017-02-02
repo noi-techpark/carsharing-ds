@@ -23,50 +23,47 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
 		<xmlrpc.version>3.1.3</xmlrpc.version>
+		<cxf.version>3.1.9</cxf.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
+			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-tomcat</artifactId>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
+		<!-- <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-starter-tomcat</artifactId> 
+			<scope>provided</scope> </dependency> -->
 
+		<!-- <dependency> <groupId>com.fasterxml.jackson.core</groupId> <artifactId>jackson-databind</artifactId> 
+			</dependency> -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+		</dependency>
 
-		<!-- xml parser -->
-		<dependency>
-			<groupId>org.apache.xmlrpc</groupId>
-			<artifactId>xmlrpc-client</artifactId>
-			<version>${xmlrpc.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.xmlrpc</groupId>
-			<artifactId>xmlrpc-common</artifactId>
-			<version>${xmlrpc.version}</version>
-		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.ws</groupId>
 			<artifactId>spring-ws-core</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-configuration-processor</artifactId>
-			<optional>true</optional>
-		</dependency>
+
+		<!-- xml parser -->
+		<!-- <dependency> <groupId>org.apache.xmlrpc</groupId> <artifactId>xmlrpc-client</artifactId> 
+			<version>${xmlrpc.version}</version> </dependency> <dependency> <groupId>org.apache.xmlrpc</groupId> 
+			<artifactId>xmlrpc-common</artifactId> <version>${xmlrpc.version}</version> 
+			</dependency> -->
+		<!-- <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-starter-ws</artifactId> 
+			</dependency> <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-configuration-processor</artifactId> 
+			<optional>true</optional> </dependency> -->
+		<!-- <dependency> <groupId>it.bz.tis.integreen</groupId> <artifactId>integreen-datasource</artifactId> 
+			<version>0.0.1-SNAPSHOT</version> </dependency> <dependency> <groupId>it.bz.tis.integreen</groupId> 
+			<artifactId>integreen-dto</artifactId> <version>0.0.1-SNAPSHOT</version> 
+			</dependency> -->
 	</dependencies>
 
 	<build>
@@ -74,6 +71,28 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+
+			<plugin>
+				<groupId>org.jvnet.jaxb2.maven2</groupId>
+				<artifactId>maven-jaxb2-plugin</artifactId>
+				<version>0.12.3</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<schemaLanguage>WSDL</schemaLanguage>
+					<generatePackage>it.bz.idm.carsharing.wsdl</generatePackage>
+					<schemas>
+						<schema>
+							<url>https://xml.dbcarsharing-buchung.de/hal2_api/definitions/v3/Hal2Api.wsdl</url>
+						</schema>
+					</schemas>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
