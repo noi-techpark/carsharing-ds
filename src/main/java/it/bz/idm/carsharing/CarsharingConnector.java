@@ -1,44 +1,34 @@
 package it.bz.idm.carsharing;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
-import javax.net.ssl.HttpsURLConnection;
-
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.ClientHttpRequest;
-import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RequestCallback;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
-import it.bz.idm.carsharing.dto.CountryDto;
-import it.bz.idm.carsharing.dto.ListCountriesRequestDto;
-import it.bz.idm.carsharing.dto.ListCountriesResponseDto;
+import it.bz.idm.carsharing.dto.GetStationRequestDto;
+import it.bz.idm.carsharing.dto.GetVehicleRequestDto;
+import it.bz.idm.carsharing.dto.ListStationsByGeoPosRequestDto;
+import it.bz.idm.carsharing.dto.ListVehiclesByStationRequestDto;
+import it.bz.idm.carsharing.wsdl.BoundingBox;
+import it.bz.idm.carsharing.wsdl.GeoPos;
+import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
 
 /**
@@ -59,11 +49,11 @@ public class CarsharingConnector {
 	String endpoint;
 	String user;
 	String password;
+	//
+	// @Autowired
+	// HAL2ApiClientConfiguration hal2ApiClientConfiguration;
 
-	@Autowired
-	HAL2ApiClientConfiguration hal2ApiClientConfiguration;
-
-	protected UserAuth userAuthentificationType = null;
+	protected UserAuth userAuth = null;
 
 	public CarsharingConnector() {
 		Resource resource = new ClassPathResource("application.properties");
@@ -79,241 +69,182 @@ public class CarsharingConnector {
 		this.user = properties.getProperty("cred.user");
 		this.password = properties.getProperty("cred.password");
 
-		userAuthentificationType = new UserAuth();
-		userAuthentificationType.setUsername(user);
-		userAuthentificationType.setPassword(password);
+		userAuth = new UserAuth();
+		userAuth.setUsername(user);
+		userAuth.setPassword(password);
 
 	}
 
 	public HashMap<String, String[]> connectForStaticData() throws IOException {
 
-		ListCountriesRequestDto listCountriesRequestDto = new ListCountriesRequestDto(userAuthentificationType);
+		RestTemplate restTemplate = new RestTemplate();
+		List<BoundingBox> boxes = new ArrayList<BoundingBox>();
+		BoundingBox boundingBox = new BoundingBox();
+		GeoPos geoPosTypeWS = new GeoPos();
+		geoPosTypeWS.setLat(46.86113);
+		geoPosTypeWS.setLon(10.375214);
+		boundingBox.setGeoPosWS(geoPosTypeWS);
+		GeoPos geoPosTypeEN = new GeoPos();
+		geoPosTypeEN.setLat(46.459147);
+		geoPosTypeEN.setLon(11.059799);
+		boundingBox.setGeoPosEN(geoPosTypeEN);
 
-		SimpleHttpClient client = new SimpleHttpClient();
-		ListCountriesResponseDto responseDto = (ListCountriesResponseDto) client.get(listCountriesRequestDto, endpoint,
-				ListCountriesResponseDto.class);
+		boxes.add(boundingBox);
 
-		System.out.println(responseDto);
+		BoundingBox boundingBox2 = new BoundingBox();
+		GeoPos geoPosTypeWS2 = new GeoPos();
+		geoPosTypeWS2.setLat(46.765265);
+		geoPosTypeWS2.setLon(11.015081);
+		boundingBox2.setGeoPosWS(geoPosTypeWS2);
+		GeoPos geoPosTypeEN2 = new GeoPos();
+		geoPosTypeEN2.setLat(46.450277);
+		geoPosTypeEN2.setLon(11.555557);
+		boundingBox2.setGeoPosEN(geoPosTypeEN2);
 
-		// RestTemplate restTemplate = new RestTemplate();
-		//
-		// // Create a list for the message converters
-		// List<HttpMessageConverter<?>> messageConverters = new
-		// ArrayList<HttpMessageConverter<?>>();
-		// // Add the Jackson Message converter
-		// messageConverters.add(new MappingJackson2HttpMessageConverter());
-		// // Add the message converters to the restTemplate
-		// restTemplate.setMessageConverters(messageConverters);
-		// HttpEntity<ListCountriesRequestDto> entity = new
-		// HttpEntity<ListCountriesRequestDto>(listCountriesRequestDto);
-		// restTemplate.postForEntity(endpoint, listCountriesRequestDto,
-		// Object.class);
-		// ListCountriesResponseDto body = postForEntity.getBody();
-		// ArrayList<CountryDto> country2 = body.getCountry();
-		// if(country2 == null)
-		// logger.error("NO COUNTRES");
-		// else
-		// for(CountryDto countryDto : country2)
-		// System.out.println(countryDto.getName());
+		boxes.add(boundingBox2);
 
-		// Hal2ApiClient hal2ApiClient =
-		// hal2ApiClientConfiguration.hal2ApiClient(hal2ApiClientConfiguration.marshaller());
-		// ListCountriesResponseDto countryFromClient =
-		// hal2ApiClient.getCountry(endpoint, userAuthentificationType);
-		//
-		// ArrayList<CountryDto> country2 = countryFromClient.getCountry();
+		BoundingBox boundingBox3 = new BoundingBox();
+		GeoPos geoPosTypeWS3 = new GeoPos();
+		geoPosTypeWS3.setLat(46.847924);
+		geoPosTypeWS3.setLon(11.458354);
+		boundingBox3.setGeoPosWS(geoPosTypeWS3);
+		GeoPos geoPosTypeEN3 = new GeoPos();
+		geoPosTypeEN3.setLat(46.533418);
+		geoPosTypeEN3.setLon(11.99883);
+		boundingBox3.setGeoPosEN(geoPosTypeEN3);
 
-		/**
-		 * WORKS
-		 */
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NONE)
-				.setVisibility(PropertyAccessor.IS_GETTER, Visibility.PUBLIC_ONLY)
-				.setVisibility(PropertyAccessor.GETTER, Visibility.PUBLIC_ONLY)
-				.setVisibility(PropertyAccessor.SETTER, Visibility.PUBLIC_ONLY);
-		mapper.enable(SerializationFeature.INDENT_OUTPUT);
+		boxes.add(boundingBox3);
 
-		StringWriter sw = new StringWriter();
-		mapper.writeValue(sw, listCountriesRequestDto);
+		BoundingBox boundingBox4 = new BoundingBox();
+		GeoPos geoPosTypeWS4 = new GeoPos();
+		geoPosTypeWS4.setLat(46.455303);
+		geoPosTypeWS4.setLon(11.166573);
+		boundingBox4.setGeoPosWS(geoPosTypeWS4);
+		GeoPos geoPosTypeEN4 = new GeoPos();
+		geoPosTypeEN4.setLat(46.218327);
+		geoPosTypeEN4.setLon(11.521568);
+		boundingBox4.setGeoPosEN(geoPosTypeEN4);
 
-		String requestJson = sw.getBuffer().toString();
+		boxes.add(boundingBox4);
+		BoundingBox boundingBox5 = new BoundingBox();
+		GeoPos geoPosTypeWS5 = new GeoPos();
+		geoPosTypeWS5.setLat(47.018653);
+		geoPosTypeWS5.setLon(11.092758);
+		boundingBox5.setGeoPosWS(geoPosTypeWS5);
+		GeoPos geoPosTypeEN5 = new GeoPos();
+		geoPosTypeEN5.setLat(46.794448);
+		geoPosTypeEN5.setLon(11.797256);
+		boundingBox5.setGeoPosEN(geoPosTypeEN5);
 
-		logger.debug("callWebService(): jsonRequest:" + requestJson);
+		boxes.add(boundingBox5);
 
-		URL url = new URL(this.endpoint);
-		HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-		conn.setRequestMethod("POST");
-		conn.setDoOutput(true);
-		OutputStream out = conn.getOutputStream();
-		out.write(requestJson.getBytes("UTF-8"));
-		out.flush();
-		int responseCode = conn.getResponseCode();
+		BoundingBox boundingBox6 = new BoundingBox();
+		GeoPos geoPosTypeWS6 = new GeoPos();
+		geoPosTypeWS6.setLat(47.098175);
+		geoPosTypeWS6.setLon(11.959305);
+		boundingBox6.setGeoPosWS(geoPosTypeWS6);
+		GeoPos geoPosTypeEN6 = new GeoPos();
+		geoPosTypeEN6.setLat(46.598506);
+		geoPosTypeEN6.setLon(12.423477);
+		boundingBox6.setGeoPosEN(geoPosTypeEN6);
 
-		InputStream input = conn.getInputStream();
+		boxes.add(boundingBox6);
 
-		ByteArrayOutputStream data = new ByteArrayOutputStream();
-		int len;
-		byte[] buf = new byte[50000];
-		while ((len = input.read(buf)) > 0) {
-			data.write(buf, 0, len);
+		List<String> stationIds = new ArrayList<>();
+		for (BoundingBox box : boxes) {
+			ListStationsByGeoPosRequestDto byGeoPosRequest = new ListStationsByGeoPosRequestDto(box, userAuth);
+			HttpEntity<ListStationsByGeoPosRequestDto> entity = new HttpEntity<ListStationsByGeoPosRequestDto>(
+					byGeoPosRequest);
+			ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
+			String response = exchange.getBody();
+			JSONObject stations = null;
+			try {
+				Object parse = new JSONParser().parse(response);
+				if (parse instanceof JSONObject)
+					stations = (JSONObject) parse;
+			} catch (ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			if (stations != null && stations.get("station") != null) {
+				JSONArray stationArray = (JSONArray) stations.get("station");
+				for (Object station : stationArray) {
+					JSONObject stationJsonObject = (JSONObject) station;
+					stationIds.add(stationJsonObject.get("uid").toString());
+				}
+			}
+
 		}
-		conn.disconnect();
-		String jsonResponse = new String(data.toByteArray(), "UTF-8");
-		if (responseCode != 200) {
-			throw new IOException(jsonResponse);
+
+		// getStation details
+		GetStationRequestDto getStationRequest = new GetStationRequestDto(userAuth, stationIds);
+
+		HttpEntity<GetStationRequestDto> getStationEntity = new HttpEntity<GetStationRequestDto>(getStationRequest);
+		ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, getStationEntity,
+				String.class);
+		String stationDetails = exchange.getBody();
+
+		//////////////////////////////////////////////////////////////
+		// Vehicles by stations
+		///////////////////////////////////////////////////////////////
+
+		ListVehiclesByStationRequestDto vehicles = new ListVehiclesByStationRequestDto(userAuth, stationIds);
+		HttpEntity<ListVehiclesByStationRequestDto> vehicleListRequest = new HttpEntity<ListVehiclesByStationRequestDto>(
+				vehicles);
+
+		ResponseEntity<String> exchangeVehicle = restTemplate.exchange(endpoint, HttpMethod.POST, vehicleListRequest,
+				String.class);
+		String vehicleResponse = exchangeVehicle.getBody();
+
+		// prepare for grtting vehicle details
+		List<StationAndVehicles> stationAndVehicles = new ArrayList<>();
+		JSONObject stationAndVehiclesJson = null;
+		try {
+			stationAndVehiclesJson = (JSONObject) new JSONParser().parse(vehicleResponse);
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 
-		logger.debug("callWebService(): jsonResponse:" + jsonResponse);
+		///////////////////////////////////////////////////////////////
+		// Vehicles details
+		///////////////////////////////////////////////////////////////
+		HashMap<String, List<String>> vehicleIdsByStationIds = new HashMap<>();
+		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
+		JSONArray stationArray = null;
+		if (stationAndVehiclesJson != null) {
+			stationArray = (JSONArray) stationAndVehiclesJson.get("stationAndVehicles");
+			for (Object stationAndVehiclesObject : stationArray) {
+				// station and vehicles
+				JSONObject stationAndVehiclesJsonObject = (JSONObject) stationAndVehiclesObject;
+				JSONArray vehiclesJsonArray = (JSONArray) stationAndVehiclesJsonObject.get("vehicle");
+				JSONObject stationJsonObject = (JSONObject) stationAndVehiclesJsonObject.get("station");
+				List<String> vIds = new ArrayList<>();
+				vehicleIdsByStationIds.put(stationJsonObject.get("uid").toString(), vIds);
+				for (Object singleVehicle : vehiclesJsonArray) {
+					JSONObject singleVehicleJSONObject = (JSONObject) singleVehicle;
+					String uid = singleVehicleJSONObject.get("vehicleUID").toString();
+					vIds.add(uid);
+					vehicleIdsForDetailRequest.add(uid);
+				}
+			}
+		}
+		System.out.println(stationArray);
+		System.err.println(vehicleIdsForDetailRequest);
+		System.err.println(vehicleIdsByStationIds);
 
-		ListCountriesResponseDto response = mapper.readValue(new StringReader(jsonResponse),
-				ListCountriesResponseDto.class);
+		// getDetails
 
-		sw = new StringWriter();
-		mapper.writeValue(sw, response);
-		logger.debug("callWebService(): parsed response into " + response.getClass().getName() + ":" + sw.toString());
+		GetVehicleRequestDto getVehicleRequestDto = new GetVehicleRequestDto(userAuth, vehicleIdsForDetailRequest);
 
-		List<CountryDto> countires = response.getCountry();
-		if (countires != null && countires.size() > 0)
-			for (CountryDto country : countires)
-				System.out.println(country.getName());
-		else
-			System.err.println("NO COUNTRYS FOUND");
+		HttpEntity<GetVehicleRequestDto> entityVehicleDetail = new HttpEntity<GetVehicleRequestDto>(
+				getVehicleRequestDto);
 
-		/**
-		 * WORKS
-		 */
+		ResponseEntity<String> exchangeVehicleDetail = restTemplate.exchange(endpoint, HttpMethod.POST,
+				entityVehicleDetail, String.class);
+		String vehicleDetailResponse = exchangeVehicleDetail.getBody();
 
-		// List<BoundingBox> boxes = new ArrayList<BoundingBox>();
-		// boxes.add(new BoundingBox(10.375214, 46.459147, 11.059799,
-		// 46.86113));
-		// boxes.add(new BoundingBox(11.015081, 46.450277, 11.555557,
-		// 46.765265));
-		// boxes.add(new BoundingBox(11.458354, 46.533418, 11.99883,
-		// 46.847924));
-		// boxes.add(new BoundingBox(11.166573, 46.218327, 11.521568,
-		// 46.455303));
-		// boxes.add(new BoundingBox(11.092758, 46.794448, 11.797256,
-		// 47.018653));
-		// boxes.add(new BoundingBox(11.959305, 46.598506, 12.423477,
-		// 47.098175));
-
-		// List<BoundingBox> boxesType = new ArrayList<BoundingBox>();
-		// BoundingBox boundingBox = new BoundingBox();
-		// GeoPos geoPosTypeWS = new GeoPos();
-		// geoPosTypeWS.setLat(46.86113);
-		// geoPosTypeWS.setLon(10.375214);
-		// boundingBox.setGeoPosWS(geoPosTypeWS);
-		//
-		// GeoPos geoPosTypeEN = new GeoPos();
-		// geoPosTypeEN.setLat(46.459147);
-		// geoPosTypeEN.setLon(11.059799);
-		// boundingBox.setGeoPosEN(geoPosTypeEN);
-		// boxesType.add(boundingBox);
-		//
-		// ListStationsByGeoPosRequestDto stationsByGeoPosRequest = new
-		// ListStationsByGeoPosRequestDto(boundingBox);
-		//
-		//
-		// ObjectMapper mapper = new ObjectMapper();
-		// mapper.setVisibility(PropertyAccessor.FIELD, Visibility.NONE)
-		// .setVisibility(PropertyAccessor.IS_GETTER, Visibility.PUBLIC_ONLY)
-		// .setVisibility(PropertyAccessor.GETTER, Visibility.PUBLIC_ONLY)
-		// .setVisibility(PropertyAccessor.SETTER, Visibility.PUBLIC_ONLY);
-		// mapper.enable(SerializationFeature.INDENT_OUTPUT);
-		//
-		// StringWriter sw = new StringWriter();
-		// mapper.writeValue(sw, stationsByGeoPosRequest);
-		//
-		// String requestJson = sw.getBuffer().toString();
-		//
-		// logger.debug("callWebService(): jsonRequest:" + requestJson);
-		//
-		// URL url = new URL(this.endpoint);
-		// HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
-		// conn.setRequestMethod("POST");
-		// conn.setDoOutput(true);
-		// OutputStream out = conn.getOutputStream();
-		// out.write(requestJson.getBytes("UTF-8"));
-		// out.flush();
-		// int responseCode = conn.getResponseCode();
-		//
-		// InputStream input = conn.getInputStream();
-		//
-		// ByteArrayOutputStream data = new ByteArrayOutputStream();
-		// int len;
-		// byte[] buf = new byte[50000];
-		// while ((len = input.read(buf)) > 0) {
-		// data.write(buf, 0, len);
-		// }
-		// conn.disconnect();
-		// String jsonResponse = new String(data.toByteArray(), "UTF-8");
-		// if (responseCode != 200) {
-		// throw new IOException(jsonResponse);
-		// }
-		//
-		// logger.debug("callWebService(): jsonResponse:" + jsonResponse);
-		//
-		// mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-		// false);
-		// ListStationsByGeoPosResponseDto response = mapper.readValue(new
-		// StringReader(jsonResponse),
-		// ListStationsByGeoPosResponseDto.class);
-		//
-		// mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-		// sw = new StringWriter();
-		// mapper.writeValue(sw, response);
-		// logger.debug("callWebService(): parsed response into " +
-		// response.getClass().getName() + ":" + sw.toString());
-		//
-		// List<Station> stations = response.getStation();
-		// if (stations != null && stations.size() > 0)
-		// for (Station station : stations)
-		// System.out.println(station.getName());
-		// else
-		// System.err.println("NO STATIONS FOUND");
-
-		//
-		// ResponseEntity<ListStationsByGeoPosResponseDto> exchange =
-		// restTemplate.exchange(endpoint, HttpMethod.GET,
-		// entity, ListStationsByGeoPosResponseDto.class);
-
-		// if (exchange == null)
-		// System.out.println("NO");
-		// else
-		// System.out.println("YES");
-
-		/**
-		 * halapiclient
-		 */
-		// List<BoundingBox> boxesType = new ArrayList<BoundingBox>();
-		// BoundingBox boundingBox = new BoundingBox();
-		// GeoPos geoPosTypeWS = new GeoPos();
-		// geoPosTypeWS.setLat(46.86113);
-		// geoPosTypeWS.setLon(10.375214);
-		// boundingBox.setGeoPosWS(geoPosTypeWS);
-		//
-		// GeoPos geoPosTypeEN = new GeoPos();
-		// geoPosTypeEN.setLat(46.459147);
-		// geoPosTypeEN.setLon(11.059799);
-		// boundingBox.setGeoPosEN(geoPosTypeEN);
-		// boxesType.add(boundingBox);
-		//
-		// if(apiClient == null){
-		// HAL2ApiClientConfiguration apiClientConfiguration = new
-		// HAL2ApiClientConfiguration();
-		// apiClient =
-		// apiClientConfiguration.hal2ApiClient(apiClientConfiguration.marshaller());
-		// }
-		//
-		// ListStationsByGeoPosResponse stationsByGeoPos =
-		// apiClient.getStationsByGeoPos(endpoint, boundingBox,
-		// userAuthentificationType);
-		//
-		// if (stationsByGeoPos == null)
-		// logger.error("ERROR in listStationsByGeoPos Request");
-		// else
-		// logger.info("yeah");
-
+		System.err.println(vehicleDetailResponse);
 		return null;
 	}
 

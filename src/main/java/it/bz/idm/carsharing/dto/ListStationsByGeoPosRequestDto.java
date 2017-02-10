@@ -1,6 +1,7 @@
 package it.bz.idm.carsharing.dto;
 
 import it.bz.idm.carsharing.wsdl.BoundingBox;
+import it.bz.idm.carsharing.wsdl.UserAuth;
 import it.bz.idm.carsharing.dto.ListStationsByGeoPosRequestDto.ListStationByGeoPosSubRequestDto;
 import it.bz.idm.carsharing.dto.RequestDto.SubRequestDto;
 
@@ -19,10 +20,10 @@ public class ListStationsByGeoPosRequestDto extends RequestDto<ListStationByGeoP
 
 	}
 
-	public ListStationsByGeoPosRequestDto(BoundingBox box)
-	   {
-	      this.request = new ListStationByGeoPosSubRequestDto();
-	      this.request.boundingBox = box; 
-	      this.function = "Api.listStationsByGeoPos";
-	   }
+	public ListStationsByGeoPosRequestDto(BoundingBox box, UserAuth technicaluser) {
+		this.request = new ListStationByGeoPosSubRequestDto();
+		this.request.boundingBox = box;
+		this.request.technicalUser = technicaluser;
+		this.function = "Api.listStationsByGeoPos";
+	}
 }

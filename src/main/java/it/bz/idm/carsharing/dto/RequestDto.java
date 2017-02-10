@@ -7,6 +7,19 @@ public class RequestDto<S extends SubRequestDto> {
 
 	public static class SubRequestDto {
 		UserAuth technicalUser = new UserAuth();
+		String authKey;
+
+		public String getAuthKey() {
+			return authKey;
+		}
+
+		public void setAuthKey(String authKey) {
+			this.authKey = authKey;
+		}
+
+		public void setTechnicalUser(UserAuth technicalUser) {
+			this.technicalUser = technicalUser;
+		}
 
 		public UserAuth getTechnicalUser() {
 			return this.technicalUser;
