@@ -2,17 +2,18 @@ package it.bz.idm.carsharing;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-
 @Component
 public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
-	private HashMap<String, String[]> vehicleIdsByStationIds;
+	private HashMap<String, List<String>> vehicleIdsByStationIds;
 
 	// library missing
 	// IXMLRPCPusher xmlrpcPusher;
@@ -31,9 +32,12 @@ public class Scheduler {
 	public void staticTask() {
 
 		logger.info("Static Task started");
-		// vehicleIdsByStationIds =
-		// carsharingConnector.connectForStaticData(cityUIDs, apiClient);
-		System.err.println("REAL TIME");
+		try {
+			vehicleIdsByStationIds = carsharingConnector.connectForStaticData();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		logger.info("Static Task finished");
 	}
 
@@ -43,16 +47,17 @@ public class Scheduler {
 	 */
 	@Scheduled(fixedRate = 600000) // 10 minutes interval
 	public void realTimeTask() {
+		logger.info("Real Time Task");
 		try {
-			logger.info("Real Time Task");
-			if (vehicleIdsByStationIds != null)
-				// carsharingConnector.connectForRealTimeData(cityUIDs,
-				// vehicleIdsByStationIds, apiClient);
-				System.err.println("REAL TIME");
-			else {
+			if (vehicleIdsByStationIds != null) {
+				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds);
+			} else {
+				logger.info("Get Static Data for the first Time");
 				vehicleIdsByStationIds = carsharingConnector.connectForStaticData();
-				// carsharingConnector.connectForRealTimeData(cityUIDs,
-				// vehicleIdsByStationIds, apiClient);
+				logger.info("Get Static Data finished for the first Time");
+				logger.info("Real Time Task for the first Time");
+				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds);
+				logger.info("Real Time Task finished for the first Time");
 			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
