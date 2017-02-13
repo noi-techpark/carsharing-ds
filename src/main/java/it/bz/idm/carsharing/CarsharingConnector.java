@@ -48,9 +48,11 @@ public class CarsharingConnector {
 	public static final String CARSHARINGCAR_DATASOURCE = "Carsharingcar";
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
 
-	String endpoint;
-	String user;
-	String password;
+	private String endpoint;
+	private String user;
+	private String password;
+	
+	private List<BoundingBox> boxes;
 
 	protected UserAuth userAuth = null;
 
@@ -71,13 +73,8 @@ public class CarsharingConnector {
 		userAuth = new UserAuth();
 		userAuth.setUsername(user);
 		userAuth.setPassword(password);
-
-	}
-
-	public HashMap<String, List<String>> connectForStaticData() throws IOException {
-
-		RestTemplate restTemplate = new RestTemplate();
-		List<BoundingBox> boxes = new ArrayList<BoundingBox>();
+		
+		boxes = new ArrayList<BoundingBox>();
 		BoundingBox boundingBox = new BoundingBox();
 		GeoPos geoPosTypeWS = new GeoPos();
 		geoPosTypeWS.setLat(46.86113);
@@ -149,6 +146,12 @@ public class CarsharingConnector {
 
 		boxes.add(boundingBox6);
 
+	}
+
+	public HashMap<String, List<String>> connectForStaticData() throws IOException {
+
+		RestTemplate restTemplate = new RestTemplate();
+
 		List<String> stationIds = new ArrayList<>();
 		for (BoundingBox box : boxes) {
 			ListStationsByGeoPosRequestDto byGeoPosRequest = new ListStationsByGeoPosRequestDto(box, userAuth);
@@ -182,7 +185,7 @@ public class CarsharingConnector {
 		ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, getStationEntity,
 				String.class);
 		String stationDetails = exchange.getBody();
-		logger.info("Station Details: "+stationDetails);
+		logger.info("Station Details: " + stationDetails);
 
 		//////////////////////////////////////////////////////////////
 		// Vehicles by stations
@@ -198,7 +201,7 @@ public class CarsharingConnector {
 
 		// prepare for grtting vehicle details
 		List<StationAndVehicles> stationAndVehicles = new ArrayList<>();
-		
+
 		JSONObject stationAndVehiclesJson = null;
 		try {
 			stationAndVehiclesJson = (JSONObject) new JSONParser().parse(vehicleResponse);
@@ -206,7 +209,7 @@ public class CarsharingConnector {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		logger.info("Station and Vehicles: "+stationAndVehiclesJson);
+		logger.info("Station and Vehicles: " + stationAndVehiclesJson);
 
 		///////////////////////////////////////////////////////////////
 		// Vehicles details
@@ -241,21 +244,21 @@ public class CarsharingConnector {
 		ResponseEntity<String> exchangeVehicleDetail = restTemplate.exchange(endpoint, HttpMethod.POST,
 				entityVehicleDetail, String.class);
 		String vehicleDetailResponse = exchangeVehicleDetail.getBody();
-		logger.info("Vehicle Details: "+vehicleDetailResponse);
-		logger.info("Vehicle by Station Ids : "+vehicleIdsByStationIds);
+		logger.info("Vehicle Details: " + vehicleDetailResponse);
+		logger.info("Vehicle by Station Ids : " + vehicleIdsByStationIds);
 		return vehicleIdsByStationIds;
 	}
 
 	public void connectForRealTimeData(HashMap<String, List<String>> vehicleIdsByStationIds) {
 		RestTemplate restTemplate = new RestTemplate();
+		Long now = System.currentTimeMillis();
 		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
 			String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
 			for (String stationId : stationIds) {
 				List<String> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				ListVehicleOccupancyByStationRequestDto listVehicleOccupancyByStationRequestDto = new ListVehicleOccupancyByStationRequestDto(
-						userAuth, SIMPLE_DATE_FORMAT.format(new Date(System.currentTimeMillis() + forecast)),
-						SIMPLE_DATE_FORMAT.format(new Date(System.currentTimeMillis() + forecast + INTERVALL)),
-						stationId, vehicleIds);
+						userAuth, SIMPLE_DATE_FORMAT.format(new Date(now + forecast)),
+						SIMPLE_DATE_FORMAT.format(new Date(now + forecast)), stationId, vehicleIds);
 
 				HttpEntity<ListVehicleOccupancyByStationRequestDto> entity = new HttpEntity<ListVehicleOccupancyByStationRequestDto>(
 						listVehicleOccupancyByStationRequestDto);
@@ -263,7 +266,24 @@ public class CarsharingConnector {
 				ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity,
 						String.class);
 				String vehicleOccupanciesResponse = exchange.getBody();
-				logger.info("Vehicle Occupancies"+vehicleOccupanciesResponse);
+				JSONObject vehicleOccupancyObject = null;
+				JSONArray vehicleOccupancyArray = null;
+				try {
+					vehicleOccupancyObject = (JSONObject) new JSONParser().parse(vehicleOccupanciesResponse);
+				} catch (ParseException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				vehicleOccupancyArray = (JSONArray) vehicleOccupancyObject.get("vehicleAndOccupancies");
+				for (Object o : vehicleOccupancyArray) {
+					JSONObject jo = (JSONObject) o;
+					if (forecast == 0)
+						logger.info("Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name") + " Occupancy: "
+								+ jo.get("occupancy"));
+					else
+						logger.info("F --- Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name") + " Occupancy: "
+								+ jo.get("occupancy"));
+				}
 			}
 		}
 	}
