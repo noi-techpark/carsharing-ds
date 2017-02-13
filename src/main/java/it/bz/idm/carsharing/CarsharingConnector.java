@@ -14,6 +14,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
@@ -49,9 +50,36 @@ public class CarsharingConnector {
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
 
 	private String endpoint;
+	// @Value("${cred.user}")
 	private String user;
 	private String password;
-	
+
+	private JSONParser jsonParser;
+
+	public String getEndpoint() {
+		return endpoint;
+	}
+
+	public void setEndpoint(String endpoint) {
+		this.endpoint = endpoint;
+	}
+
+	public String getUser() {
+		return user;
+	}
+
+	public void setUser(String user) {
+		this.user = user;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
 	private List<BoundingBox> boxes;
 
 	protected UserAuth userAuth = null;
@@ -67,13 +95,15 @@ public class CarsharingConnector {
 		}
 
 		this.endpoint = properties.getProperty("cred.endpoint");
+
 		this.user = properties.getProperty("cred.user");
+
 		this.password = properties.getProperty("cred.password");
 
 		userAuth = new UserAuth();
 		userAuth.setUsername(user);
 		userAuth.setPassword(password);
-		
+
 		boxes = new ArrayList<BoundingBox>();
 		BoundingBox boundingBox = new BoundingBox();
 		GeoPos geoPosTypeWS = new GeoPos();
@@ -146,10 +176,11 @@ public class CarsharingConnector {
 
 		boxes.add(boundingBox6);
 
+		jsonParser = new JSONParser();
+
 	}
 
 	public HashMap<String, List<String>> connectForStaticData() throws IOException {
-
 		RestTemplate restTemplate = new RestTemplate();
 
 		List<String> stationIds = new ArrayList<>();
@@ -161,7 +192,7 @@ public class CarsharingConnector {
 			String response = exchange.getBody();
 			JSONObject stations = null;
 			try {
-				Object parse = new JSONParser().parse(response);
+				Object parse = jsonParser.parse(response);
 				if (parse instanceof JSONObject)
 					stations = (JSONObject) parse;
 			} catch (ParseException e) {
@@ -185,7 +216,7 @@ public class CarsharingConnector {
 		ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, getStationEntity,
 				String.class);
 		String stationDetails = exchange.getBody();
-		logger.info("Station Details: " + stationDetails);
+		// logger.info("Station Details: " + stationDetails);
 
 		//////////////////////////////////////////////////////////////
 		// Vehicles by stations
@@ -204,12 +235,12 @@ public class CarsharingConnector {
 
 		JSONObject stationAndVehiclesJson = null;
 		try {
-			stationAndVehiclesJson = (JSONObject) new JSONParser().parse(vehicleResponse);
+			stationAndVehiclesJson = (JSONObject) jsonParser.parse(vehicleResponse);
 		} catch (ParseException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		logger.info("Station and Vehicles: " + stationAndVehiclesJson);
+		// logger.info("Station and Vehicles: " + stationAndVehiclesJson);
 
 		///////////////////////////////////////////////////////////////
 		// Vehicles details
@@ -244,8 +275,8 @@ public class CarsharingConnector {
 		ResponseEntity<String> exchangeVehicleDetail = restTemplate.exchange(endpoint, HttpMethod.POST,
 				entityVehicleDetail, String.class);
 		String vehicleDetailResponse = exchangeVehicleDetail.getBody();
-		logger.info("Vehicle Details: " + vehicleDetailResponse);
-		logger.info("Vehicle by Station Ids : " + vehicleIdsByStationIds);
+		// logger.info("Vehicle Details: " + vehicleDetailResponse);
+		// logger.info("Vehicle by Station Ids : " + vehicleIdsByStationIds);
 		return vehicleIdsByStationIds;
 	}
 
@@ -253,12 +284,14 @@ public class CarsharingConnector {
 		RestTemplate restTemplate = new RestTemplate();
 		Long now = System.currentTimeMillis();
 		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
+			int i = 0;
 			String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
+			String begin = SIMPLE_DATE_FORMAT.format(new Date(now + forecast));
+			String end = SIMPLE_DATE_FORMAT.format(new Date(now + forecast + INTERVALL));
 			for (String stationId : stationIds) {
 				List<String> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				ListVehicleOccupancyByStationRequestDto listVehicleOccupancyByStationRequestDto = new ListVehicleOccupancyByStationRequestDto(
-						userAuth, SIMPLE_DATE_FORMAT.format(new Date(now + forecast)),
-						SIMPLE_DATE_FORMAT.format(new Date(now + forecast)), stationId, vehicleIds);
+						userAuth, begin, end, stationId, vehicleIds);
 
 				HttpEntity<ListVehicleOccupancyByStationRequestDto> entity = new HttpEntity<ListVehicleOccupancyByStationRequestDto>(
 						listVehicleOccupancyByStationRequestDto);
@@ -267,22 +300,22 @@ public class CarsharingConnector {
 						String.class);
 				String vehicleOccupanciesResponse = exchange.getBody();
 				JSONObject vehicleOccupancyObject = null;
-				JSONArray vehicleOccupancyArray = null;
 				try {
-					vehicleOccupancyObject = (JSONObject) new JSONParser().parse(vehicleOccupanciesResponse);
+					vehicleOccupancyObject = (JSONObject) jsonParser.parse(vehicleOccupanciesResponse);
 				} catch (ParseException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				vehicleOccupancyArray = (JSONArray) vehicleOccupancyObject.get("vehicleAndOccupancies");
-				for (Object o : vehicleOccupancyArray) {
+
+				for (Object o : (JSONArray) vehicleOccupancyObject.get("vehicleAndOccupancies")) {
 					JSONObject jo = (JSONObject) o;
-					if (forecast == 0)
-						logger.info("Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name") + " Occupancy: "
+					if (forecast == 0 && jo.get("occupancy").toString().length() > 2)
+						logger.info(i + " Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name") + " Occupancy: "
 								+ jo.get("occupancy"));
-					else
-						logger.info("F --- Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name") + " Occupancy: "
-								+ jo.get("occupancy"));
+					else if (jo.get("occupancy").toString().length() > 2)
+						logger.info(i + "F --- Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name")
+								+ " Occupancy: " + jo.get("occupancy"));
+					i++;
 				}
 			}
 		}
