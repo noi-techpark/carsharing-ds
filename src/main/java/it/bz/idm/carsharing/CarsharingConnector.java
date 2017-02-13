@@ -34,7 +34,7 @@ import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
 
 /**
- * class for connecting to the carsharing-platform, get the data abd push them
+ * class for connecting to the carsharing-platform, get the data and push them
  * to the inegreenPlatform
  * 
  * @author sdalvai
@@ -51,9 +51,6 @@ public class CarsharingConnector {
 	String endpoint;
 	String user;
 	String password;
-	//
-	// @Autowired
-	// HAL2ApiClientConfiguration hal2ApiClientConfiguration;
 
 	protected UserAuth userAuth = null;
 
@@ -241,7 +238,6 @@ public class CarsharingConnector {
 
 		HttpEntity<GetVehicleRequestDto> entityVehicleDetail = new HttpEntity<GetVehicleRequestDto>(
 				getVehicleRequestDto);
-
 		ResponseEntity<String> exchangeVehicleDetail = restTemplate.exchange(endpoint, HttpMethod.POST,
 				entityVehicleDetail, String.class);
 		String vehicleDetailResponse = exchangeVehicleDetail.getBody();
