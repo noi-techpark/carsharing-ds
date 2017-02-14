@@ -14,7 +14,6 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
@@ -41,6 +40,7 @@ import it.bz.idm.carsharing.wsdl.UserAuth;
  * @author sdalvai
  *
  */
+
 @Component
 public class CarsharingConnector {
 	static final SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
@@ -48,6 +48,8 @@ public class CarsharingConnector {
 	public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
 	public static final String CARSHARINGCAR_DATASOURCE = "Carsharingcar";
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
+
+//	private CarsharingConnectorConfiguration configuration;
 
 	private String endpoint;
 	// @Value("${cred.user}")
@@ -85,6 +87,8 @@ public class CarsharingConnector {
 	protected UserAuth userAuth = null;
 
 	public CarsharingConnector() {
+
+
 		Resource resource = new ClassPathResource("application.properties");
 		Properties properties = null;
 		try {
@@ -95,9 +99,7 @@ public class CarsharingConnector {
 		}
 
 		this.endpoint = properties.getProperty("cred.endpoint");
-
 		this.user = properties.getProperty("cred.user");
-
 		this.password = properties.getProperty("cred.password");
 
 		userAuth = new UserAuth();
@@ -182,7 +184,7 @@ public class CarsharingConnector {
 
 	public HashMap<String, List<String>> connectForStaticData() throws IOException {
 		RestTemplate restTemplate = new RestTemplate();
-
+		
 		List<String> stationIds = new ArrayList<>();
 		for (BoundingBox box : boxes) {
 			ListStationsByGeoPosRequestDto byGeoPosRequest = new ListStationsByGeoPosRequestDto(box, userAuth);
@@ -295,11 +297,15 @@ public class CarsharingConnector {
 
 				HttpEntity<ListVehicleOccupancyByStationRequestDto> entity = new HttpEntity<ListVehicleOccupancyByStationRequestDto>(
 						listVehicleOccupancyByStationRequestDto);
-
+				
+				logger.info("request started after :"+(System.currentTimeMillis() - now));
 				ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity,
 						String.class);
+				logger.info("request finished after :"+(System.currentTimeMillis() - now));
 				String vehicleOccupanciesResponse = exchange.getBody();
 				JSONObject vehicleOccupancyObject = null;
+				
+				logger.info("parsing started after :"+(System.currentTimeMillis() - now));
 				try {
 					vehicleOccupancyObject = (JSONObject) jsonParser.parse(vehicleOccupanciesResponse);
 				} catch (ParseException e) {
@@ -316,6 +322,7 @@ public class CarsharingConnector {
 						logger.info(i + "F --- Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name")
 								+ " Occupancy: " + jo.get("occupancy"));
 					i++;
+					logger.info("parsing partially ended after :"+(System.currentTimeMillis() - now));
 				}
 			}
 		}
