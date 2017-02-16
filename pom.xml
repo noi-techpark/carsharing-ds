@@ -65,13 +65,31 @@
 
 
 		<!-- xml parser -->
-		<!-- <dependency> <groupId>org.apache.xmlrpc</groupId> <artifactId>xmlrpc-client</artifactId> 
-			<version>${xmlrpc.version}</version> </dependency> <dependency> <groupId>org.apache.xmlrpc</groupId> 
-			<artifactId>xmlrpc-common</artifactId> <version>${xmlrpc.version}</version> 
-			</dependency> -->
-		<!-- <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-starter-ws</artifactId> 
-			</dependency> <dependency> <groupId>org.springframework.boot</groupId> <artifactId>spring-boot-configuration-processor</artifactId> 
-			<optional>true</optional> </dependency> -->
+		<dependency>
+			<groupId>org.apache.xmlrpc</groupId>
+			<artifactId>xmlrpc-client</artifactId>
+			<version>${xmlrpc.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.xmlrpc</groupId>
+			<artifactId>xmlrpc-common</artifactId>
+			<version>${xmlrpc.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-configuration</groupId>
+			<artifactId>commons-configuration</artifactId>
+			<version>1.6</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web-services</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-configuration-processor</artifactId>
+			<optional>true</optional>
+		</dependency>
 		<!-- <dependency> <groupId>it.bz.tis.integreen</groupId> <artifactId>integreen-datasource</artifactId> 
 			<version>0.0.1-SNAPSHOT</version> </dependency> <dependency> <groupId>it.bz.tis.integreen</groupId> 
 			<artifactId>integreen-dto</artifactId> <version>0.0.1-SNAPSHOT</version> 
