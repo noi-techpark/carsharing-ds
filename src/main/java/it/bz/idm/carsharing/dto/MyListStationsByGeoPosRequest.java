@@ -4,7 +4,7 @@ import it.bz.idm.carsharing.wsdl.BoundingBox;
 import it.bz.idm.carsharing.wsdl.ListStationsByGeoPosRequest;
 import it.bz.idm.carsharing.wsdl.UserAuth;
 
-public class NewLisStationsByGeoPosRequest {
+public class MyListStationsByGeoPosRequest {
 	String function = "Api.listStationsByGeoPos";
 
 	ListStationsByGeoPosRequest request;
@@ -17,7 +17,7 @@ public class NewLisStationsByGeoPosRequest {
 		return request;
 	}
 
-	public NewLisStationsByGeoPosRequest(UserAuth techniacalUser, BoundingBox boundingBox) {
+	public MyListStationsByGeoPosRequest(UserAuth techniacalUser, BoundingBox boundingBox) {
 		this.request = new ListStationsByGeoPosRequest();
 		this.request.setTechnicalUser(techniacalUser);
 		this.request.setBoundingBox(boundingBox);

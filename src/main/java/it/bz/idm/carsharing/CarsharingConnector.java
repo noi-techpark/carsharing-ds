@@ -2,13 +2,17 @@ package it.bz.idm.carsharing;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -27,22 +31,27 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import it.bz.idm.carsharing.dto.GetStationRequestDto;
-import it.bz.idm.carsharing.dto.GetVehicleRequestDto;
-import it.bz.idm.carsharing.dto.ListStationsByGeoPosRequestDto;
 import it.bz.idm.carsharing.dto.ListVehicleOccupancyByStationRequestDto;
-import it.bz.idm.carsharing.dto.ListVehiclesByStationRequestDto;
-import it.bz.idm.carsharing.dto.NewLisStationsByGeoPosRequest;
+import it.bz.idm.carsharing.dto.MyGetStationRequest;
+import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
+import it.bz.idm.carsharing.dto.MyListStationsByGeoPosRequest;
+import it.bz.idm.carsharing.dto.MyListVehicleOccupancyByStationRequest;
+import it.bz.idm.carsharing.dto.MyListVehiclesByStationRequest;
 import it.bz.idm.carsharing.wsdl.BoundingBox;
 import it.bz.idm.carsharing.wsdl.GeoPos;
+import it.bz.idm.carsharing.wsdl.GetStationResponse;
+import it.bz.idm.carsharing.wsdl.GetVehicleResponse;
 import it.bz.idm.carsharing.wsdl.ListStationsByGeoPosResponse;
+import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse;
+import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
+import it.bz.idm.carsharing.wsdl.ListVehiclesByStationResponse;
+import it.bz.idm.carsharing.wsdl.Station;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
-import it.bz.tis.integreen.util.IntegreenException;
-import it.bz.tis.integreen.xmlrpc.FakeConnector;
-import it.bz.tis.integreen.xmlrpc.IXMLRPCPusher;
+import it.bz.idm.carsharing.wsdl.Vehicle;
 
 /**
  * class for connecting to the carsharing-platform, get the data and push them
@@ -66,8 +75,6 @@ public class CarsharingConnector {
 	// @Value("${cred.user}")
 	private String user;
 	private String password;
-
-	private IXMLRPCPusher xmlrpcPusher;
 
 	private JSONParser jsonParser;
 
@@ -101,8 +108,9 @@ public class CarsharingConnector {
 
 	protected UserAuth userAuth = null;
 
+	ObjectMapper mapper;
+
 	public CarsharingConnector() {
-		xmlrpcPusher = new FakeConnector();
 
 		Resource resource = new ClassPathResource("application.properties");
 		Properties properties = null;
@@ -134,197 +142,200 @@ public class CarsharingConnector {
 
 		jsonParser = new JSONParser();
 
+		mapper = new ObjectMapper();
+		mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+		mapper.configure(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT, true);
+		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
+		mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
 	}
 
-	public HashMap<String, List<String>> connectForStaticData() throws IOException {
+	public HashMap<Integer, Integer[]> connectForStaticData() throws IOException {
 		RestTemplate restTemplate = new RestTemplate();
 
-		List<String> stationIds = new ArrayList<>();
+		List<Integer> stationIds = new ArrayList<>();
 		for (BoundingBox box : boxes) {
-			NewLisStationsByGeoPosRequest byGeoPosRequest = new NewLisStationsByGeoPosRequest(userAuth, box);
-			HttpEntity<NewLisStationsByGeoPosRequest> entity = new HttpEntity<NewLisStationsByGeoPosRequest>(
+			MyListStationsByGeoPosRequest byGeoPosRequest = new MyListStationsByGeoPosRequest(userAuth, box);
+			HttpEntity<MyListStationsByGeoPosRequest> entity = new HttpEntity<MyListStationsByGeoPosRequest>(
 					byGeoPosRequest, headers);
 			ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
 
-			// simlpe GSON
 			String response = exchange.getBody();
-			JSONObject stations = null;
-			try {
-				Object parse = jsonParser.parse(response);
-				if (parse instanceof JSONObject)
-					stations = (JSONObject) parse;
-			} catch (ParseException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			if (stations != null && stations.get("station") != null) {
-				JSONArray stationArray = (JSONArray) stations.get("station");
-				for (Object station : stationArray) {
-					JSONObject stationJsonObject = (JSONObject) station;
-					stationIds.add(stationJsonObject.get("uid").toString());
-				}
-			}
-
-			// simple GSON END
-			ObjectMapper mapper = new ObjectMapper();
-			StringWriter stringWriter = new StringWriter();
-			mapper.writeValue(stringWriter, response);
-
-			String responseJackson = stringWriter.getBuffer().toString();
-			System.err.println(responseJackson);
 
 			// parse to object
-
-			ListStationsByGeoPosResponse readValue = mapper.readValue(new StringReader(response),
+			// check if station array is empty
+			ListStationsByGeoPosResponse stations = mapper.readValue(new StringReader(response),
 					ListStationsByGeoPosResponse.class);
-			System.err.println(readValue);
-
+			if (stations != null)
+				for (Station station : stations.getStation()) {
+					stationIds.add(station.getUid());
+				}
 			// Jackson
 		}
 
-		// getStation details
-		GetStationRequestDto getStationRequest = new GetStationRequestDto(userAuth, stationIds);
+		///////////////////////////////////////////////////////////////
+		// Stations details
+		///////////////////////////////////////////////////////////////
+		MyGetStationRequest getStationRequest = new MyGetStationRequest(userAuth, stationIds);
 
-		HttpEntity<GetStationRequestDto> getStationEntity = new HttpEntity<GetStationRequestDto>(getStationRequest,
+		HttpEntity<MyGetStationRequest> getStationEntity = new HttpEntity<MyGetStationRequest>(getStationRequest,
 				headers);
 		ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, getStationEntity,
 				String.class);
 		String stationDetails = exchange.getBody();
-		// logger.info("Station Details: " + stationDetails);
+
+		// remove 'km' distance of NeighborStation to prevent
+		// InvalidFormatException-> String to Float
+		stationDetails = stationDetails.replace(" km", "");
+
+		GetStationResponse getStationResponse = mapper.readValue(new StringReader(stationDetails),
+				GetStationResponse.class);
+
+		logger.info("Station Details: " + getStationResponse);
 
 		//////////////////////////////////////////////////////////////
 		// Vehicles by stations
 		///////////////////////////////////////////////////////////////
 
-		ListVehiclesByStationRequestDto vehicles = new ListVehiclesByStationRequestDto(userAuth, stationIds);
-		HttpEntity<ListVehiclesByStationRequestDto> vehicleListRequest = new HttpEntity<ListVehiclesByStationRequestDto>(
+		MyListVehiclesByStationRequest vehicles = new MyListVehiclesByStationRequest(userAuth, stationIds);
+		HttpEntity<MyListVehiclesByStationRequest> vehicleListRequest = new HttpEntity<MyListVehiclesByStationRequest>(
 				vehicles, headers);
 
 		ResponseEntity<String> exchangeVehicle = restTemplate.exchange(endpoint, HttpMethod.POST, vehicleListRequest,
 				String.class);
 		String vehicleResponse = exchangeVehicle.getBody();
 
-		// prepare for grtting vehicle details
-		List<StationAndVehicles> stationAndVehicles = new ArrayList<>();
+		// resplace vehicle with VEHICLE to prevent enum not found exception
+		vehicleResponse = vehicleResponse.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"");
+		ListVehiclesByStationResponse listVehiclesByStationResponse = mapper
+				.readValue(new StringReader(vehicleResponse), ListVehiclesByStationResponse.class);
 
-		JSONObject stationAndVehiclesJson = null;
-		try {
-			stationAndVehiclesJson = (JSONObject) jsonParser.parse(vehicleResponse);
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		// logger.info("Station and Vehicles: " + stationAndVehiclesJson);
+		logger.info("Station Details: " + listVehiclesByStationResponse);
 
 		///////////////////////////////////////////////////////////////
 		// Vehicles details
-		///////////////////////////////////////////////////////////////
-		HashMap<String, List<String>> vehicleIdsByStationIds = new HashMap<>();
-		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
-		JSONArray stationArray = null;
-		if (stationAndVehiclesJson != null) {
-			stationArray = (JSONArray) stationAndVehiclesJson.get("stationAndVehicles");
-			for (Object stationAndVehiclesObject : stationArray) {
-				// station and vehicles
-				JSONObject stationAndVehiclesJsonObject = (JSONObject) stationAndVehiclesObject;
-				JSONArray vehiclesJsonArray = (JSONArray) stationAndVehiclesJsonObject.get("vehicle");
-				JSONObject stationJsonObject = (JSONObject) stationAndVehiclesJsonObject.get("station");
-				List<String> vIds = new ArrayList<>();
-				vehicleIdsByStationIds.put(stationJsonObject.get("uid").toString(), vIds);
-				for (Object singleVehicle : vehiclesJsonArray) {
-					JSONObject singleVehicleJSONObject = (JSONObject) singleVehicle;
-					String uid = singleVehicleJSONObject.get("vehicleUID").toString();
-					vIds.add(uid);
-					vehicleIdsForDetailRequest.add(uid);
-				}
+		// ///////////////////////////////////////////////////////////////
+		HashMap<Integer, Integer[]> vehicleIdsByStationIds = new HashMap<>();
+		List<Integer> vehicleIdsForDetailRequest = new ArrayList<Integer>();
+		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
+			// station and vehicles
+			Integer[] vehicleIds = new Integer[stationAndVehicles.getVehicle().size()];
+			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getUid(), vehicleIds);
+			for (int i = 0; i < stationAndVehicles.getVehicle().size(); i++) {
+				vehicleIds[i] = stationAndVehicles.getVehicle().get(0).getVehicleUID();
+				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle().get(0).getVehicleUID());
 			}
 		}
+		//
+		// // getDetails
+		//
+		MyGetVehicleRequest getVehicleRequestDto = new MyGetVehicleRequest(userAuth, vehicleIdsForDetailRequest);
 
-		// getDetails
-
-		GetVehicleRequestDto getVehicleRequestDto = new GetVehicleRequestDto(userAuth, vehicleIdsForDetailRequest);
-
-		HttpEntity<GetVehicleRequestDto> entityVehicleDetail = new HttpEntity<GetVehicleRequestDto>(
-				getVehicleRequestDto, headers);
+		HttpEntity<MyGetVehicleRequest> entityVehicleDetail = new HttpEntity<MyGetVehicleRequest>(getVehicleRequestDto,
+				headers);
 		ResponseEntity<String> exchangeVehicleDetail = restTemplate.exchange(endpoint, HttpMethod.POST,
 				entityVehicleDetail, String.class);
 		String vehicleDetailResponse = exchangeVehicleDetail.getBody();
 
-		///////////////////////////////////////////////////////////////
-		// Write data to integreen
-		///////////////////////////////////////////////////////////////
+		vehicleDetailResponse = vehicleDetailResponse.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"");
 
-		// prepare station and vehicle Details
-		JSONObject stationDetailsObject = null;
-		try {
-			stationDetailsObject = (JSONObject) jsonParser.parse(stationDetails);
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		String stations = null;
-		if (stationDetailsObject != null) {
-			stations = stationDetailsObject.get("station").toString();
-		}
+		GetVehicleResponse getVehicleResponse = mapper.readValue(new StringReader(vehicleDetailResponse),
+				GetVehicleResponse.class);
 
-		JSONObject vehicleDetailObject = null;
-		try {
-			vehicleDetailObject = (JSONObject) jsonParser.parse(vehicleDetailResponse);
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		String vehicle = null;
-		if (vehicleDetailObject != null) {
-			vehicle = ((JSONArray) vehicleDetailObject.get("vehicle")).toJSONString();
-		}
-
-		Object result = xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE, stations);
-		if (result instanceof IntegreenException) {
-			throw new IOException("IntegreenException");
-		}
+		System.err.println(getVehicleResponse);
 		//
-		// synchronized (lock)
-		// {
-		// activityLog.report += "syncStations("
-		// + CARSHARINGSTATION_DATASOURCE
-		// + "): "
-		// + responseGetStation.getStation().length
-		// + "\n";
+		// ///////////////////////////////////////////////////////////////
+		// // Write data to integreen
+		// ///////////////////////////////////////////////////////////////
+		//
+		// // prepare station and vehicle Details
+		// JSONObject stationDetailsObject = null;
+		// try {
+		// stationDetailsObject = (JSONObject) jsonParser.parse(stationDetails);
+		// } catch (ParseException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
+		// String stations = null;
+		// if (stationDetailsObject != null) {
+		// stations = stationDetailsObject.get("station").toString();
 		// }
 		//
-		result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE, vehicle);
-		if (result instanceof IntegreenException) {
-			throw new IOException("IntegreenException");
-		}
-
-		// synchronized (lock)
-		// {
-		// activityLog.report += "syncStations("
-		// + CARSHARINGCAR_DATASOURCE
-		// + "): "
-		// + responseVehicleDetails.getVehicle().length
-		// + "\n";
+		// JSONObject vehicleDetailObject = null;
+		// try {
+		// vehicleDetailObject = (JSONObject)
+		// jsonParser.parse(vehicleDetailResponse);
+		// } catch (ParseException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
 		// }
+		// String vehicle = null;
+		// if (vehicleDetailObject != null) {
+		// vehicle = ((JSONArray)
+		// vehicleDetailObject.get("vehicle")).toJSONString();
+		// }
+		//
+		// Object result =
+		// xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE, stations);
+		// if (result instanceof IntegreenException) {
+		// throw new IOException("IntegreenException");
+		// }
+		// //
+		// // synchronized (lock)
+		// // {
+		// // activityLog.report += "syncStations("
+		// // + CARSHARINGSTATION_DATASOURCE
+		// // + "): "
+		// // + responseGetStation.getStation().length
+		// // + "\n";
+		// // }
+		// //
+		// result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE,
+		// vehicle);
+		// if (result instanceof IntegreenException) {
+		// throw new IOException("IntegreenException");
+		// }
+		//
+		// // synchronized (lock)
+		// // {
+		// // activityLog.report += "syncStations("
+		// // + CARSHARINGCAR_DATASOURCE
+		// // + "): "
+		// // + responseVehicleDetails.getVehicle().length
+		// // + "\n";
+		// // }
 
 		return vehicleIdsByStationIds;
 	}
 
-	public void connectForRealTimeData(HashMap<String, List<String>> vehicleIdsByStationIds) throws IOException {
+	public void connectForRealTimeData(HashMap<Integer, Integer[]> vehicleIdsByStationIds) throws IOException {
 		RestTemplate restTemplate = new RestTemplate();
 
 		Long now = System.currentTimeMillis();
 		logger.info("REAL TIME DATA STARTED AT " + now);
 		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
-			int i = 0;
-			String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
-			String begin = SIMPLE_DATE_FORMAT.format(new Date(now + forecast));
-			String end = SIMPLE_DATE_FORMAT.format(new Date(now + forecast + INTERVALL));
-			for (String stationId : stationIds) {
-				List<String> vehicleIds = vehicleIdsByStationIds.get(stationId);
-				ListVehicleOccupancyByStationRequestDto listVehicleOccupancyByStationRequestDto = new ListVehicleOccupancyByStationRequestDto(
+			GregorianCalendar begin2 = new GregorianCalendar();
+			begin2.setTime(new Date(now + forecast));
+			GregorianCalendar end2 = new GregorianCalendar();
+			end2.setTime(new Date(now + forecast + INTERVALL));
+			XMLGregorianCalendar begin = null;
+			XMLGregorianCalendar end = null;
+			try {
+				begin = DatatypeFactory.newInstance().newXMLGregorianCalendar(begin2);
+				end = DatatypeFactory.newInstance().newXMLGregorianCalendar(end2);
+			} catch (DatatypeConfigurationException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			
+			begin.normalize();
+			end.normalize();
+
+			Integer[] stationIds = vehicleIdsByStationIds.keySet().toArray(new Integer[0]);
+			for (Integer stationId : stationIds) {
+				Integer[] vehicleIds = vehicleIdsByStationIds.get(stationId);
+				MyListVehicleOccupancyByStationRequest listVehicleOccupancyByStationRequestDto = new MyListVehicleOccupancyByStationRequest(
 						userAuth, begin, end, stationId, vehicleIds);
-				HttpEntity<ListVehicleOccupancyByStationRequestDto> entity = new HttpEntity<ListVehicleOccupancyByStationRequestDto>(
+				HttpEntity<MyListVehicleOccupancyByStationRequest> entity = new HttpEntity<MyListVehicleOccupancyByStationRequest>(
 						listVehicleOccupancyByStationRequestDto, headers);
 
 				logger.info("request started after :" + (System.currentTimeMillis() - now));
@@ -332,27 +343,15 @@ public class CarsharingConnector {
 						String.class);
 				logger.info("request finished after :" + (System.currentTimeMillis() - now));
 				String vehicleOccupanciesResponse = exchange.getBody();
-				JSONObject vehicleOccupancyObject = null;
+
+				ListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = mapper.readValue(
+						new StringReader(vehicleOccupanciesResponse), ListVehicleOccupancyByStationResponse.class);
+				for (VehicleAndOccupancies vo : listVehicleOccupancyByStationResponse.getVehicleAndOccupancies()) {
+					logger.info("vehicle: " + vo.getVehicle().getName() + "| occupancy: " + vo.getOccupancy());
+				}
 
 				logger.info("parsing started after :" + (System.currentTimeMillis() - now));
-				try {
-					vehicleOccupancyObject = (JSONObject) jsonParser.parse(vehicleOccupanciesResponse);
-				} catch (ParseException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
 
-				for (Object o : (JSONArray) vehicleOccupancyObject.get("vehicleAndOccupancies")) {
-					JSONObject jo = (JSONObject) o;
-					if (forecast == 0 && jo.get("occupancy").toString().length() > 2)
-						logger.info(i + " Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name") + " Occupancy: "
-								+ jo.get("occupancy"));
-					else if (jo.get("occupancy").toString().length() > 2)
-						logger.info(i + "F --- Vehicle: " + ((JSONObject) jo.get("vehicle")).get("name")
-								+ " Occupancy: " + jo.get("occupancy"));
-					i++;
-					logger.info("parsing partially ended after :" + (System.currentTimeMillis() - now));
-				}
 			}
 		}
 		logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));

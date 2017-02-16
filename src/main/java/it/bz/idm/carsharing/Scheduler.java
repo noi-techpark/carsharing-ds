@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
-	private HashMap<String, List<String>> vehicleIdsByStationIds;
+	private HashMap<Integer, Integer[]> vehicleIdsByStationIds;
 
 	// library missing
 	// IXMLRPCPusher xmlrpcPusher;
