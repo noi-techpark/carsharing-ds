@@ -2,20 +2,19 @@ package it.bz.idm.carsharing;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
-
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
@@ -26,10 +25,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
 import it.bz.idm.carsharing.dto.MyListStationsByGeoPosRequest;
@@ -47,6 +44,7 @@ import it.bz.idm.carsharing.wsdl.Occupancy;
 import it.bz.idm.carsharing.wsdl.Station;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
+import it.bz.idm.carsharing.wsdl.Vehicle;
 
 /**
  * class for connecting to the carsharing-platform, get the data and push them
@@ -58,13 +56,16 @@ import it.bz.idm.carsharing.wsdl.UserAuth;
 
 @Component
 public class CarsharingConnector {
-	static final SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+	// static final SimpleDateFormat SIMPLE_DATE_FORMAT = new
+	// SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 	final static long INTERVALL = 10L * 60L * 1000L;
 	public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
 	public static final String CARSHARINGCAR_DATASOURCE = "Carsharingcar";
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
 
 	// private CarsharingConnectorConfiguration configuration;
+	@Autowired
+	private ActivityLogger activityLogger;
 
 	private String endpoint;
 	// @Value("${cred.user}")
@@ -140,9 +141,12 @@ public class CarsharingConnector {
 		mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
 	}
 
-	public HashMap<Integer, Integer[]> connectForStaticData() throws IOException {
-		RestTemplate restTemplate = new RestTemplate();
+	public HashMap<Integer, List<Integer>> connectForStaticData(HashMap<String, List<Integer>> vehicleIdsByStationNames)
+			throws IOException {
+		Long now = System.currentTimeMillis();
+		logger.info("STATIC DATA STARTED AT " + now);
 
+		RestTemplate restTemplate = new RestTemplate();
 		List<Integer> stationIds = new ArrayList<>();
 		for (BoundingBox box : boxes) {
 			MyListStationsByGeoPosRequest byGeoPosRequest = new MyListStationsByGeoPosRequest(userAuth, box);
@@ -180,8 +184,9 @@ public class CarsharingConnector {
 
 		GetStationResponse getStationResponse = mapper.readValue(new StringReader(stationDetails),
 				GetStationResponse.class);
-
-		logger.info("Station Details: " + getStationResponse);
+		logger.info("ALL STATIONS");
+		for (Station s : getStationResponse.getStation())
+			logger.info(s.getName());
 
 		//////////////////////////////////////////////////////////////
 		// Vehicles by stations
@@ -197,23 +202,36 @@ public class CarsharingConnector {
 
 		// resplace vehicle with VEHICLE to prevent enum not found exception
 		vehicleResponse = vehicleResponse.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"");
+
+		// JUST FOR LOGGING AND PREPARING BEHICLEUUIDS BY STATION NAMES
 		ListVehiclesByStationResponse listVehiclesByStationResponse = mapper
 				.readValue(new StringReader(vehicleResponse), ListVehiclesByStationResponse.class);
+		logger.info("STATIONS AND VEHICLES");
+		for (StationAndVehicles sv : listVehiclesByStationResponse.getStationAndVehicles()) {
+			logger.info("station " + sv.getStation().getName());
+			logger.info("VEHICLES");
+			List<Integer> vIds = new ArrayList<>();
+			for (Vehicle v : sv.getVehicle()) {
+				logger.info("vehicle " + v.getName() + " targa: " + v.getLicensePlate());
+				vIds.add(v.getVehicleUID());
+			}
+			vehicleIdsByStationNames.put(sv.getStation().getName(), vIds);
 
-		logger.info("Station Details: " + listVehiclesByStationResponse);
+		}
 
 		///////////////////////////////////////////////////////////////
 		// Vehicles details
 		// ///////////////////////////////////////////////////////////////
-		HashMap<Integer, Integer[]> vehicleIdsByStationIds = new HashMap<>();
+		HashMap<Integer, List<Integer>> vehicleIdsByStationIds = new HashMap<>();
 		List<Integer> vehicleIdsForDetailRequest = new ArrayList<Integer>();
 		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
 			// station and vehicles
-			Integer[] vehicleIds = new Integer[stationAndVehicles.getVehicle().size()];
+			// activityLogger.getStationAndVehicles().add(stationAndVehicles);
+			List<Integer> vehicleIds = new ArrayList<Integer>();
 			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getUid(), vehicleIds);
 			for (int i = 0; i < stationAndVehicles.getVehicle().size(); i++) {
-				vehicleIds[i] = stationAndVehicles.getVehicle().get(0).getVehicleUID();
-				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle().get(0).getVehicleUID());
+				vehicleIds.add(stationAndVehicles.getVehicle().get(i).getVehicleUID());
+				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle().get(i).getVehicleUID());
 			}
 		}
 		//
@@ -232,7 +250,6 @@ public class CarsharingConnector {
 		GetVehicleResponse getVehicleResponse = mapper.readValue(new StringReader(vehicleDetailResponse),
 				GetVehicleResponse.class);
 
-		System.err.println(getVehicleResponse);
 		//
 		// ///////////////////////////////////////////////////////////////
 		// // Write data to integreen
@@ -294,11 +311,12 @@ public class CarsharingConnector {
 		// // + responseVehicleDetails.getVehicle().length
 		// // + "\n";
 		// // }
-
+		logger.info("STATIC DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		return vehicleIdsByStationIds;
 	}
 
-	public void connectForRealTimeData(HashMap<Integer, Integer[]> vehicleIdsByStationIds) throws IOException {
+	public void connectForRealTimeData(HashMap<Integer, List<Integer>> vehicleIdsByStationIds,
+			HashMap<String, List<Integer>> vehicleIdsByStationNames) throws IOException {
 		RestTemplate restTemplate = new RestTemplate();
 
 		// XML
@@ -322,21 +340,26 @@ public class CarsharingConnector {
 				e1.printStackTrace();
 			}
 
-			begin = begin.normalize();
-			end = end.normalize();
-
-			Integer[] stationIds = vehicleIdsByStationIds.keySet().toArray(new Integer[0]);
+			Integer[] stationIds = new Integer[vehicleIdsByStationIds.keySet().size()];
+			int i = 0;
+			for (Integer id : vehicleIdsByStationIds.keySet()) {
+				stationIds[i] = id;
+				i++;
+			}
+			Arrays.sort(stationIds);
 			for (Integer stationId : stationIds) {
-				Integer[] vehicleIds = vehicleIdsByStationIds.get(stationId);
+				List<Integer> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				MyListVehicleOccupancyByStationRequest listVehicleOccupancyByStationRequestDto = new MyListVehicleOccupancyByStationRequest(
-						userAuth, begin, end, stationId, vehicleIds);
+						userAuth, begin, end, stationId, vehicleIds.toArray(new Integer[0]));
 				HttpEntity<MyListVehicleOccupancyByStationRequest> entity = new HttpEntity<MyListVehicleOccupancyByStationRequest>(
 						listVehicleOccupancyByStationRequestDto, headers);
 
-//				logger.info("request started after :" + (System.currentTimeMillis() - now));
+				// logger.info("request started after :" +
+				// (System.currentTimeMillis() - now));
 				ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity,
 						String.class);
-//				logger.info("request finished after :" + (System.currentTimeMillis() - now));
+				// logger.info("request finished after :" +
+				// (System.currentTimeMillis() - now));
 				String vehicleOccupanciesResponse = exchange.getBody();
 
 				vehicleOccupanciesResponse = vehicleOccupanciesResponse
@@ -348,18 +371,35 @@ public class CarsharingConnector {
 				ListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = mapper.readValue(
 						new StringReader(vehicleOccupanciesResponse), ListVehicleOccupancyByStationResponse.class);
 				for (VehicleAndOccupancies vo : listVehicleOccupancyByStationResponse.getVehicleAndOccupancies()) {
-					for (Occupancy o : vo.getOccupancy())
-						if (forecast == 0){
-							logger.info("vehicle: " + vo.getVehicle().getName() + " targa:"
-									+ vo.getVehicle().getLicensePlate() + "| occupancy: begin:" + o.getBegin() + " end:"
-									+ o.getEnd() + " kind:" + o.getOccupancyKind());
+					// activityLogger.getVehicleAndOccupancies().add(vo);
+					if (vo.getOccupancy() != null && vo.getOccupancy().size() > 0)
+						for (Occupancy o : vo.getOccupancy()) {
+							if (forecast == 0) {
+								for (String key : vehicleIdsByStationNames.keySet()) {
+									if (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
+										logger.info("s: " + key + " vehicle: " + vo.getVehicle().getName() + " targa:"
+												+ vo.getVehicle().getLicensePlate() + " | occupancy: begin:"
+												+ o.getBegin() + " end:" + o.getEnd() + " kind:"
+												+ o.getOccupancyKind());
+								}
+							} else {
+								for (String key : vehicleIdsByStationNames.keySet()) {
+									if (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
+										logger.info("(forecast) s: " + key + " vehicle: " + vo.getVehicle().getName()
+												+ " targa:" + vo.getVehicle().getLicensePlate() + " | occupancy: begin:"
+												+ o.getBegin() + " end:" + o.getEnd() + " kind:"
+												+ o.getOccupancyKind());
+								}
+							}
 						}
-						else
-							logger.info("(forecast) vehicle: " + vo.getVehicle().getName() + " targa:"
-									+ vo.getVehicle().getLicensePlate() + "| occupancy: begin:" + o.getBegin() + " end:"
-									+ o.getEnd() + " kind:" + o.getOccupancyKind());
+//					else {
+//						for (String key : vehicleIdsByStationNames.keySet()) {
+//							if (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
+//								logger.info("FREE s: " + key + " vehicle: " + vo.getVehicle().getName() + " targa:"
+//										+ vo.getVehicle().getLicensePlate());
+//						}
+//					}
 				}
-				System.out.println();
 			}
 		}
 		logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
