@@ -14,10 +14,6 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
@@ -34,7 +30,6 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import it.bz.idm.carsharing.dto.ListVehicleOccupancyByStationRequestDto;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
 import it.bz.idm.carsharing.dto.MyListStationsByGeoPosRequest;
@@ -48,10 +43,10 @@ import it.bz.idm.carsharing.wsdl.ListStationsByGeoPosResponse;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.wsdl.ListVehiclesByStationResponse;
+import it.bz.idm.carsharing.wsdl.Occupancy;
 import it.bz.idm.carsharing.wsdl.Station;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
-import it.bz.idm.carsharing.wsdl.Vehicle;
 
 /**
  * class for connecting to the carsharing-platform, get the data and push them
@@ -75,8 +70,6 @@ public class CarsharingConnector {
 	// @Value("${cred.user}")
 	private String user;
 	private String password;
-
-	private JSONParser jsonParser;
 
 	private HttpHeaders headers;
 
@@ -139,8 +132,6 @@ public class CarsharingConnector {
 		boxes.add(setUpBoundingBox(46.455303, 11.166573, 46.218327, 11.521568));
 		boxes.add(setUpBoundingBox(47.018653, 11.092758, 46.794448, 11.797256));
 		boxes.add(setUpBoundingBox(47.098175, 11.959305, 46.598506, 12.423477));
-
-		jsonParser = new JSONParser();
 
 		mapper = new ObjectMapper();
 		mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -310,6 +301,10 @@ public class CarsharingConnector {
 	public void connectForRealTimeData(HashMap<Integer, Integer[]> vehicleIdsByStationIds) throws IOException {
 		RestTemplate restTemplate = new RestTemplate();
 
+		// XML
+		HttpHeaders headersXML = new HttpHeaders();
+		headersXML.setContentType(MediaType.APPLICATION_ATOM_XML);
+
 		Long now = System.currentTimeMillis();
 		logger.info("REAL TIME DATA STARTED AT " + now);
 		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
@@ -326,9 +321,9 @@ public class CarsharingConnector {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-			
-			begin.normalize();
-			end.normalize();
+
+			begin = begin.normalize();
+			end = end.normalize();
 
 			Integer[] stationIds = vehicleIdsByStationIds.keySet().toArray(new Integer[0]);
 			for (Integer stationId : stationIds) {
@@ -338,20 +333,33 @@ public class CarsharingConnector {
 				HttpEntity<MyListVehicleOccupancyByStationRequest> entity = new HttpEntity<MyListVehicleOccupancyByStationRequest>(
 						listVehicleOccupancyByStationRequestDto, headers);
 
-				logger.info("request started after :" + (System.currentTimeMillis() - now));
+//				logger.info("request started after :" + (System.currentTimeMillis() - now));
 				ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity,
 						String.class);
-				logger.info("request finished after :" + (System.currentTimeMillis() - now));
+//				logger.info("request finished after :" + (System.currentTimeMillis() - now));
 				String vehicleOccupanciesResponse = exchange.getBody();
+
+				vehicleOccupanciesResponse = vehicleOccupanciesResponse
+						.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"")
+						.replace("\"occupancyKind\":\"Foreign\"", "\"occupancyKind\":\"FOREIGN\"")
+						.replace("\"occupancyKind\":\"Gap\"", "\"occupancyKind\":\"GAP\"");
+				;
 
 				ListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = mapper.readValue(
 						new StringReader(vehicleOccupanciesResponse), ListVehicleOccupancyByStationResponse.class);
 				for (VehicleAndOccupancies vo : listVehicleOccupancyByStationResponse.getVehicleAndOccupancies()) {
-					logger.info("vehicle: " + vo.getVehicle().getName() + "| occupancy: " + vo.getOccupancy());
+					for (Occupancy o : vo.getOccupancy())
+						if (forecast == 0){
+							logger.info("vehicle: " + vo.getVehicle().getName() + " targa:"
+									+ vo.getVehicle().getLicensePlate() + "| occupancy: begin:" + o.getBegin() + " end:"
+									+ o.getEnd() + " kind:" + o.getOccupancyKind());
+						}
+						else
+							logger.info("(forecast) vehicle: " + vo.getVehicle().getName() + " targa:"
+									+ vo.getVehicle().getLicensePlate() + "| occupancy: begin:" + o.getBegin() + " end:"
+									+ o.getEnd() + " kind:" + o.getOccupancyKind());
 				}
-
-				logger.info("parsing started after :" + (System.currentTimeMillis() - now));
-
+				System.out.println();
 			}
 		}
 		logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
@@ -372,7 +380,6 @@ public class CarsharingConnector {
 		geoPosTypeEN.setLat(latEN);
 		geoPosTypeEN.setLon(lonEN);
 		boundingBox.setGeoPosEN(geoPosTypeEN);
-
 		return boundingBox;
 	}
 }

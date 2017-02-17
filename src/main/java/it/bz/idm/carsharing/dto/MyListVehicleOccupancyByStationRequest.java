@@ -2,9 +2,12 @@ package it.bz.idm.carsharing.dto;
 
 import javax.xml.datatype.XMLGregorianCalendar;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationRequest;
 import it.bz.idm.carsharing.wsdl.UserAuth;
 
+@JsonSerialize(using = MyListVehicleOccupancyByStationRequestSerializer.class)
 public class MyListVehicleOccupancyByStationRequest {
 	String function;
 	ListVehicleOccupancyByStationRequest request;
@@ -19,6 +22,9 @@ public class MyListVehicleOccupancyByStationRequest {
 		for (Integer vehicleUid : vehicleUids)
 			this.request.getVehicleUID().add(vehicleUid);
 		this.function = "Api.listVehicleOccupancyByStation";
+	}
+	
+	public MyListVehicleOccupancyByStationRequest(){
 	}
 
 	public String getFunction() {
