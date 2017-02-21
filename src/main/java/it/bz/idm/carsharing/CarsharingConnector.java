@@ -7,7 +7,9 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
@@ -46,6 +48,12 @@ import it.bz.idm.carsharing.wsdl.Station;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
 import it.bz.idm.carsharing.wsdl.Vehicle;
+import it.bz.tis.integreen.carsharingbzit.tis.CarSharingXMLRPCPusher;
+import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
+import it.bz.tis.integreen.dto.DataTypeDto;
+import it.bz.tis.integreen.dto.SimpleRecordDto;
+import it.bz.tis.integreen.dto.TypeMapDto;
+import it.bz.tis.integreen.util.IntegreenException;
 
 /**
  * class for connecting to the carsharing-platform, get the data and push them
@@ -67,6 +75,8 @@ public class CarsharingConnector {
 	// private CarsharingConnectorConfiguration configuration;
 	@Autowired
 	private ActivityLogger activityLogger;
+
+	private IXMLRPCPusher xmlrpcPusher;
 
 	private String endpoint;
 	// @Value("${cred.user}")
@@ -112,6 +122,8 @@ public class CarsharingConnector {
 		this.endpoint = endpoint;
 		this.user = user;
 		this.password = password;
+
+		xmlrpcPusher = new CarSharingXMLRPCPusher();
 
 		userAuth = new UserAuth();
 		userAuth.setUsername(user);
@@ -245,67 +257,21 @@ public class CarsharingConnector {
 		GetVehicleResponse getVehicleResponse = mapper.readValue(new StringReader(vehicleDetailResponse),
 				GetVehicleResponse.class);
 
-		//
-		// ///////////////////////////////////////////////////////////////
-		// // Write data to integreen
-		// ///////////////////////////////////////////////////////////////
-		//
-		// // prepare station and vehicle Details
-		// JSONObject stationDetailsObject = null;
-		// try {
-		// stationDetailsObject = (JSONObject) jsonParser.parse(stationDetails);
-		// } catch (ParseException e) {
-		// // TODO Auto-generated catch block
-		// e.printStackTrace();
-		// }
-		// String stations = null;
-		// if (stationDetailsObject != null) {
-		// stations = stationDetailsObject.get("station").toString();
-		// }
-		//
-		// JSONObject vehicleDetailObject = null;
-		// try {
-		// vehicleDetailObject = (JSONObject)
-		// jsonParser.parse(vehicleDetailResponse);
-		// } catch (ParseException e) {
-		// // TODO Auto-generated catch block
-		// e.printStackTrace();
-		// }
-		// String vehicle = null;
-		// if (vehicleDetailObject != null) {
-		// vehicle = ((JSONArray)
-		// vehicleDetailObject.get("vehicle")).toJSONString();
-		// }
-		//
-		// Object result =
-		// xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE, stations);
-		// if (result instanceof IntegreenException) {
-		// throw new IOException("IntegreenException");
-		// }
-		// //
-		// // synchronized (lock)
-		// // {
-		// // activityLog.report += "syncStations("
-		// // + CARSHARINGSTATION_DATASOURCE
-		// // + "): "
-		// // + responseGetStation.getStation().length
-		// // + "\n";
-		// // }
-		// //
-		// result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE,
-		// vehicle);
-		// if (result instanceof IntegreenException) {
-		// throw new IOException("IntegreenException");
-		// }
-		//
-		// // synchronized (lock)
-		// // {
-		// // activityLog.report += "syncStations("
-		// // + CARSHARINGCAR_DATASOURCE
-		// // + "): "
-		// // + responseVehicleDetails.getVehicle().length
-		// // + "\n";
-		// // }
+		///////////////////////////////////////////////////////////////
+		// Write data to integreen
+		///////////////////////////////////////////////////////////////
+
+		Object result = xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE,
+				getStationResponse.getStation().toArray());
+		if (result instanceof IntegreenException) {
+			throw new IOException("IntegreenException");
+		}
+
+		result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE, getVehicleResponse.getVehicle().toArray());
+		if (result instanceof IntegreenException) {
+			throw new IOException("IntegreenException");
+		}
+
 		logger.info("STATIC DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		return vehicleIdsByStationIds;
 	}
@@ -342,6 +308,9 @@ public class CarsharingConnector {
 				i++;
 			}
 			Arrays.sort(stationIds);
+
+			HashMap<Integer, TypeMapDto> stationData = new HashMap<Integer, TypeMapDto>();
+			HashMap<Integer, TypeMapDto> vehicleData = new HashMap<Integer, TypeMapDto>();
 			for (Integer stationId : stationIds) {
 				List<Integer> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				MyListVehicleOccupancyByStationRequest listVehicleOccupancyByStationRequestDto = new MyListVehicleOccupancyByStationRequest(
@@ -366,29 +335,69 @@ public class CarsharingConnector {
 				ListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = mapper.readValue(
 						new StringReader(vehicleOccupanciesResponse), ListVehicleOccupancyByStationResponse.class);
 				activityLogger.getVehicleAndOccupancies().clear();
-				for (VehicleAndOccupancies vo : listVehicleOccupancyByStationResponse.getVehicleAndOccupancies()) {
+				// Same number of responses as the number to requests
+				if (listVehicleOccupancyByStationResponse.getVehicleAndOccupancies().size() != vehicleIds.size()) {
+					throw new IllegalStateException();
+				}
+				int free = 0;
+				for (VehicleAndOccupancies vehicleOccupancy : listVehicleOccupancyByStationResponse
+						.getVehicleAndOccupancies()) {
 					if (forecast == 0)
-						activityLogger.getVehicleAndOccupancies().add(vo);
-					if (vo.getOccupancy() != null && vo.getOccupancy().size() > 0)
-						for (Occupancy o : vo.getOccupancy()) {
-							if (forecast == 0) {
-								for (String key : vehicleIdsByStationNames.keySet()) {
-									if (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
-										logger.info("s: " + key + " vehicle: " + vo.getVehicle().getName() + " targa:"
-												+ vo.getVehicle().getLicensePlate() + " | occupancy: begin:"
-												+ o.getBegin() + " end:" + o.getEnd() + " kind:"
-												+ o.getOccupancyKind());
-								}
-							} else {
-								for (String key : vehicleIdsByStationNames.keySet()) {
-									if (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
-										logger.info("(forecast) s: " + key + " vehicle: " + vo.getVehicle().getName()
-												+ " targa:" + vo.getVehicle().getLicensePlate() + " | occupancy: begin:"
-												+ o.getBegin() + " end:" + o.getEnd() + " kind:"
-												+ o.getOccupancyKind());
-								}
-							}
-						}
+						activityLogger.getVehicleAndOccupancies().add(vehicleOccupancy);
+
+					if (vehicleOccupancy.getOccupancy().size() > 1) {
+						throw new IllegalStateException("Why???");
+					}
+					int state = 0; // free
+					if (vehicleOccupancy.getOccupancy().size() == 1) {
+						state = 1;
+					} else {
+						free++;
+					}
+					TypeMapDto typeMap = new TypeMapDto();
+					vehicleData.put(vehicleOccupancy.getVehicle().getVehicleUID(), typeMap);
+					String type = "unknown";
+					if (forecast == 0)
+						type = DataTypeDto.AVAILABILITY;
+					else
+						type = DataTypeDto.FUTURE_AVAILABILITY;
+					Set<SimpleRecordDto> dtos = typeMap.getRecordsByType().get(type);
+					if (dtos == null) {
+						dtos = new HashSet<SimpleRecordDto>();
+						typeMap.getRecordsByType().put(type, dtos);
+					}
+					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis() + forecast, state + 0., 600));
+
+					// for logging
+
+					// if (vo.getOccupancy() != null && vo.getOccupancy().size()
+					// > 0)
+					// for (Occupancy o : vo.getOccupancy()) {
+					// if (forecast == 0) {
+					// for (String key : vehicleIdsByStationNames.keySet()) {
+					// if
+					// (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
+					// logger.info("s: " + key + " vehicle: " +
+					// vo.getVehicle().getName() + " targa:"
+					// + vo.getVehicle().getLicensePlate() + " | occupancy:
+					// begin:"
+					// + o.getBegin() + " end:" + o.getEnd() + " kind:"
+					// + o.getOccupancyKind());
+					// }
+					// } else {
+					// for (String key : vehicleIdsByStationNames.keySet()) {
+					// if
+					// (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
+					// logger.info("(forecast) s: " + key + " vehicle: " +
+					// vo.getVehicle().getName()
+					// + " targa:" + vo.getVehicle().getLicensePlate() + " |
+					// occupancy: begin:"
+					// + o.getBegin() + " end:" + o.getEnd() + " kind:"
+					// + o.getOccupancyKind());
+					// }
+					// }
+
+					// }
 					// else {
 					// for (String key : vehicleIdsByStationNames.keySet()) {
 					// if
@@ -399,13 +408,27 @@ public class CarsharingConnector {
 					// }
 					// }
 				}
+				Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
+				TypeMapDto typeMap = new TypeMapDto();
+				typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
+				if (forecast == 0)
+					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis() + forecast, free + 0., 600));
+				stationData.put(stationId, typeMap);
 			}
-		}
-		logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
+			///////////////////////////////////////////////////////////////
+			// Write data to integreen
+			///////////////////////////////////////////////////////////////
 
-		///////////////////////////////////////////////////////////////
-		// Write data to integreen
-		///////////////////////////////////////////////////////////////
+			Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, new Object[] { stationData });
+			if (result instanceof IntegreenException) {
+				throw new IOException("IntegreenException");
+			}
+			result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, new Object[] { vehicleData });
+			if (result instanceof IntegreenException) {
+				throw new IOException("IntegreenException");
+			}
+			logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
+		}
 
 	}
 
