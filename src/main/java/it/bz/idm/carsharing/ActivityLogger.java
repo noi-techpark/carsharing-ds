@@ -2,11 +2,14 @@ package it.bz.idm.carsharing;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.stereotype.Service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 
-@Service
+@Component
 public class ActivityLogger {
 
 	List<StationAndVehicles> stationAndVehicles;
@@ -22,6 +25,11 @@ public class ActivityLogger {
 		if (vehicleAndOccupancies == null)
 			vehicleAndOccupancies = new ArrayList<VehicleAndOccupancies>();
 		return vehicleAndOccupancies;
+	}
+	
+	@Autowired
+	public ActivityLogger(){
+		
 	}
 
 }

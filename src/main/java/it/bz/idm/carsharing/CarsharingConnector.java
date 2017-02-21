@@ -112,7 +112,7 @@ public class CarsharingConnector {
 		this.endpoint = endpoint;
 		this.user = user;
 		this.password = password;
-
+		
 		userAuth = new UserAuth();
 		userAuth.setUsername(user);
 		userAuth.setPassword(password);
@@ -139,7 +139,7 @@ public class CarsharingConnector {
 			throws IOException {
 		Long now = System.currentTimeMillis();
 		logger.info("STATIC DATA STARTED AT " + now);
-
+		
 		RestTemplate restTemplate = new RestTemplate();
 		List<Integer> stationIds = new ArrayList<>();
 		for (BoundingBox box : boxes) {
@@ -220,7 +220,7 @@ public class CarsharingConnector {
 		List<Integer> vehicleIdsForDetailRequest = new ArrayList<Integer>();
 		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
 			// station and vehicles
-			// activityLogger.getStationAndVehicles().add(stationAndVehicles);
+			activityLogger.getStationAndVehicles().add(stationAndVehicles);
 			List<Integer> vehicleIds = new ArrayList<Integer>();
 			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getUid(), vehicleIds);
 			for (int i = 0; i < stationAndVehicles.getVehicle().size(); i++) {
@@ -365,7 +365,7 @@ public class CarsharingConnector {
 				ListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = mapper.readValue(
 						new StringReader(vehicleOccupanciesResponse), ListVehicleOccupancyByStationResponse.class);
 				for (VehicleAndOccupancies vo : listVehicleOccupancyByStationResponse.getVehicleAndOccupancies()) {
-					// activityLogger.getVehicleAndOccupancies().add(vo);
+					activityLogger.getVehicleAndOccupancies().add(vo);
 					if (vo.getOccupancy() != null && vo.getOccupancy().size() > 0)
 						for (Occupancy o : vo.getOccupancy()) {
 							if (forecast == 0) {
