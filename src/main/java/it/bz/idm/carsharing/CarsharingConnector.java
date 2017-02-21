@@ -8,16 +8,15 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Properties;
+
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -25,8 +24,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
 import it.bz.idm.carsharing.dto.MyListStationsByGeoPosRequest;
@@ -104,20 +105,13 @@ public class CarsharingConnector {
 
 	ObjectMapper mapper;
 
-	public CarsharingConnector() {
+	@Autowired
+	public CarsharingConnector(@Value("${cred.endpoint}") final String endpoint,
+			@Value("${cred.user}") final String user, @Value("${cred.password}") final String password) {
 
-		Resource resource = new ClassPathResource("application.properties");
-		Properties properties = null;
-		try {
-			properties = PropertiesLoaderUtils.loadProperties(resource);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		this.endpoint = properties.getProperty("cred.endpoint");
-		this.user = properties.getProperty("cred.user");
-		this.password = properties.getProperty("cred.password");
+		this.endpoint = endpoint;
+		this.user = user;
+		this.password = password;
 
 		userAuth = new UserAuth();
 		userAuth.setUsername(user);
@@ -392,13 +386,15 @@ public class CarsharingConnector {
 								}
 							}
 						}
-//					else {
-//						for (String key : vehicleIdsByStationNames.keySet()) {
-//							if (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
-//								logger.info("FREE s: " + key + " vehicle: " + vo.getVehicle().getName() + " targa:"
-//										+ vo.getVehicle().getLicensePlate());
-//						}
-//					}
+					// else {
+					// for (String key : vehicleIdsByStationNames.keySet()) {
+					// if
+					// (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
+					// logger.info("FREE s: " + key + " vehicle: " +
+					// vo.getVehicle().getName() + " targa:"
+					// + vo.getVehicle().getLicensePlate());
+					// }
+					// }
 				}
 			}
 		}
