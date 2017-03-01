@@ -43,7 +43,6 @@ import it.bz.idm.carsharing.wsdl.ListStationsByGeoPosResponse;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.wsdl.ListVehiclesByStationResponse;
-import it.bz.idm.carsharing.wsdl.Occupancy;
 import it.bz.idm.carsharing.wsdl.Station;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
@@ -261,18 +260,18 @@ public class CarsharingConnector {
 		// Write data to integreen
 		///////////////////////////////////////////////////////////////
 
-		Object result = xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE,
-				getStationResponse.getStation().toArray());
-		if (result instanceof IntegreenException) {
-			throw new IOException("IntegreenException");
-		}
-
-		result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE, getVehicleResponse.getVehicle().toArray());
-		if (result instanceof IntegreenException) {
-			throw new IOException("IntegreenException");
-		}
-
-		logger.info("STATIC DATA ENDED AFTER " + (System.currentTimeMillis() - now));
+//		Object result = xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE,
+//				getStationResponse.getStation().toArray());
+//		if (result instanceof IntegreenException) {
+//			throw new IOException("IntegreenException");
+//		}
+//
+//		result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE, getVehicleResponse.getVehicle().toArray());
+//		if (result instanceof IntegreenException) {
+//			throw new IOException("IntegreenException");
+//		}
+//
+//		logger.info("STATIC DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		return vehicleIdsByStationIds;
 	}
 
@@ -366,7 +365,7 @@ public class CarsharingConnector {
 						dtos = new HashSet<SimpleRecordDto>();
 						typeMap.getRecordsByType().put(type, dtos);
 					}
-					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis() + forecast, state + 0., 600));
+					dtos.add(new SimpleRecordDto(now + forecast, state + 0., 600));
 
 					// for logging
 
@@ -412,21 +411,21 @@ public class CarsharingConnector {
 				TypeMapDto typeMap = new TypeMapDto();
 				typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
 				if (forecast == 0)
-					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis() + forecast, free + 0., 600));
+					dtos.add(new SimpleRecordDto(now + forecast, free + 0., 600));
 				stationData.put(stationId, typeMap);
 			}
 			///////////////////////////////////////////////////////////////
 			// Write data to integreen
 			///////////////////////////////////////////////////////////////
-
-			Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, new Object[] { stationData });
-			if (result instanceof IntegreenException) {
-				throw new IOException("IntegreenException");
-			}
-			result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, new Object[] { vehicleData });
-			if (result instanceof IntegreenException) {
-				throw new IOException("IntegreenException");
-			}
+//
+//			Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, new Object[] { stationData });
+//			if (result instanceof IntegreenException) {
+//				throw new IOException("IntegreenException");
+//			}
+//			result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, new Object[] { vehicleData });
+//			if (result instanceof IntegreenException) {
+//				throw new IOException("IntegreenException");
+//			}
 			logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		}
 
