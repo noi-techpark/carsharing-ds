@@ -2,6 +2,7 @@ package it.bz.idm.carsharing.web;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,9 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+
 import it.bz.idm.carsharing.ActivityLogger;
-import it.bz.idm.carsharing.dto.ChatBotMessageDto;
-import it.bz.idm.carsharing.dto.ChatBotTextDto;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 
@@ -37,7 +37,6 @@ public class CarsharingActivityLogController {
 
 	@RequestMapping(value = "occupiedVehicles", method = RequestMethod.GET)
 	public @ResponseBody ResponseEntity<List<VehicleAndOccupancies>> occupiedVehicles() {
-
 		List<VehicleAndOccupancies> list = new ArrayList<>();
 		for (VehicleAndOccupancies vo : activityLogger.getVehicleAndOccupancies())
 			if (vo.getOccupancy() != null && vo.getOccupancy().size() > 0)
@@ -47,14 +46,4 @@ public class CarsharingActivityLogController {
 		return responseEntity;
 	}
 	
-	@RequestMapping(value = "chatbot", method = RequestMethod.GET)
-	public @ResponseBody ResponseEntity<ChatBotMessageDto> forChatBot() {
-		ChatBotMessageDto list = new ChatBotMessageDto();
-		ChatBotTextDto text = new ChatBotTextDto();
-		text.setText("Hello Chatbot!!");
-		list.getMessages().add(text);
-		ResponseEntity<ChatBotMessageDto> responseEntity = new ResponseEntity<ChatBotMessageDto>(
-				list, HttpStatus.OK);
-		return responseEntity;
-	}
 }

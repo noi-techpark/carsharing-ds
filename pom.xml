@@ -99,6 +99,18 @@
 			<artifactId>spring-boot-configuration-processor</artifactId>
 			<optional>true</optional>
 		</dependency>
+
+		<dependency>
+			<groupId>it.bz.idm.bdp</groupId>
+			<artifactId>dto</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+
+		<dependency>
+			<groupId>it.bz.idm.bdp</groupId>
+			<artifactId>dc-interface</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
 	<build>

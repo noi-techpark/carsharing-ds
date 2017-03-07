@@ -10,11 +10,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,10 +24,12 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import it.bz.idm.bdp.dto.DataTypeDto;
+import it.bz.idm.bdp.dto.SimpleRecordDto;
+import it.bz.idm.bdp.dto.TypeMapDto;
+import it.bz.idm.bdp.util.IntegreenException;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
 import it.bz.idm.carsharing.dto.MyListStationsByGeoPosRequest;
@@ -47,12 +47,6 @@ import it.bz.idm.carsharing.wsdl.Station;
 import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
 import it.bz.idm.carsharing.wsdl.Vehicle;
-import it.bz.tis.integreen.carsharingbzit.tis.CarSharingXMLRPCPusher;
-import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
-import it.bz.tis.integreen.dto.DataTypeDto;
-import it.bz.tis.integreen.dto.SimpleRecordDto;
-import it.bz.tis.integreen.dto.TypeMapDto;
-import it.bz.tis.integreen.util.IntegreenException;
 
 /**
  * class for connecting to the carsharing-platform, get the data and push them
@@ -75,7 +69,11 @@ public class CarsharingConnector {
 	@Autowired
 	private ActivityLogger activityLogger;
 
-	private IXMLRPCPusher xmlrpcPusher;
+	@Autowired
+	CarsharingStationSync stationPusher;
+
+	@Autowired
+	CarsharingCarSync carPusher;
 
 	private String endpoint;
 	// @Value("${cred.user}")
@@ -121,8 +119,6 @@ public class CarsharingConnector {
 		this.endpoint = endpoint;
 		this.user = user;
 		this.password = password;
-
-		xmlrpcPusher = new CarSharingXMLRPCPusher();
 
 		userAuth = new UserAuth();
 		userAuth.setUsername(user);
@@ -260,18 +256,17 @@ public class CarsharingConnector {
 		// Write data to integreen
 		///////////////////////////////////////////////////////////////
 
-//		Object result = xmlrpcPusher.syncStations(CARSHARINGSTATION_DATASOURCE,
-//				getStationResponse.getStation().toArray());
-//		if (result instanceof IntegreenException) {
-//			throw new IOException("IntegreenException");
-//		}
-//
-//		result = xmlrpcPusher.syncStations(CARSHARINGCAR_DATASOURCE, getVehicleResponse.getVehicle().toArray());
-//		if (result instanceof IntegreenException) {
-//			throw new IOException("IntegreenException");
-//		}
-//
-//		logger.info("STATIC DATA ENDED AFTER " + (System.currentTimeMillis() - now));
+		// Object syncStations =
+		// stationPusher.syncStations(getStationResponse.getStation().toArray());
+		// if (syncStations instanceof IntegreenException)
+		// throw new IOException("IntegreenException: static Stations sync");
+		//
+		// Object syncCars =
+		// carPusher.syncStations(getVehicleResponse.getVehicle().toArray());
+		// if (syncCars instanceof IntegreenException)
+		// throw new IOException("IntegreenException: static Cars sync");
+
+		logger.info("STATIC DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		return vehicleIdsByStationIds;
 	}
 
@@ -279,12 +274,12 @@ public class CarsharingConnector {
 			HashMap<String, List<Integer>> vehicleIdsByStationNames) throws IOException {
 		RestTemplate restTemplate = new RestTemplate();
 
-		// XML
-		HttpHeaders headersXML = new HttpHeaders();
-		headersXML.setContentType(MediaType.APPLICATION_ATOM_XML);
-
 		Long now = System.currentTimeMillis();
 		logger.info("REAL TIME DATA STARTED AT " + now);
+
+		// clean activity log
+		activityLogger.getVehicleAndOccupancies().clear();
+
 		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
 			GregorianCalendar begin2 = new GregorianCalendar();
 			begin2.setTime(new Date(now + forecast));
@@ -317,23 +312,23 @@ public class CarsharingConnector {
 				HttpEntity<MyListVehicleOccupancyByStationRequest> entity = new HttpEntity<MyListVehicleOccupancyByStationRequest>(
 						listVehicleOccupancyByStationRequestDto, headers);
 
-				// logger.info("request started after :" +
-				// (System.currentTimeMillis() - now));
+//				ListVehicleOccupancyByStationResponse postForObject = restTemplate.postForObject(endpoint, entity,
+//						ListVehicleOccupancyByStationResponse.class);
+//
+//				System.out.println(postForObject);
+
 				ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity,
 						String.class);
-				// logger.info("request finished after :" +
-				// (System.currentTimeMillis() - now));
 				String vehicleOccupanciesResponse = exchange.getBody();
 
 				vehicleOccupanciesResponse = vehicleOccupanciesResponse
 						.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"")
 						.replace("\"occupancyKind\":\"Foreign\"", "\"occupancyKind\":\"FOREIGN\"")
 						.replace("\"occupancyKind\":\"Gap\"", "\"occupancyKind\":\"GAP\"");
-				;
 
 				ListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = mapper.readValue(
 						new StringReader(vehicleOccupanciesResponse), ListVehicleOccupancyByStationResponse.class);
-				activityLogger.getVehicleAndOccupancies().clear();
+
 				// Same number of responses as the number to requests
 				if (listVehicleOccupancyByStationResponse.getVehicleAndOccupancies().size() != vehicleIds.size()) {
 					throw new IllegalStateException();
@@ -344,9 +339,9 @@ public class CarsharingConnector {
 					if (forecast == 0)
 						activityLogger.getVehicleAndOccupancies().add(vehicleOccupancy);
 
-					if (vehicleOccupancy.getOccupancy().size() > 1) {
-						throw new IllegalStateException("Why???");
-					}
+					// if (vehicleOccupancy.getOccupancy().size() > 1) {
+					// throw new IllegalStateException("Why???");
+					// }
 					int state = 0; // free
 					if (vehicleOccupancy.getOccupancy().size() == 1) {
 						state = 1;
@@ -417,18 +412,20 @@ public class CarsharingConnector {
 			///////////////////////////////////////////////////////////////
 			// Write data to integreen
 			///////////////////////////////////////////////////////////////
-//
-//			Object result = xmlrpcPusher.pushData(CARSHARINGSTATION_DATASOURCE, new Object[] { stationData });
-//			if (result instanceof IntegreenException) {
-//				throw new IOException("IntegreenException");
-//			}
-//			result = xmlrpcPusher.pushData(CARSHARINGCAR_DATASOURCE, new Object[] { vehicleData });
-//			if (result instanceof IntegreenException) {
-//				throw new IOException("IntegreenException");
-//			}
+
+			// Object syncStations = stationPusher.syncStations(new Object[] {
+			// stationData });
+			// if (syncStations instanceof IntegreenException)
+			// throw new IOException("IntegreenException: real time stations
+			// sync");
+			//
+			// Object syncCars = carPusher.syncStations(new Object[] {
+			// vehicleData });
+			// if (syncCars instanceof IntegreenException)
+			// throw new IOException("IntegreenException: real time cars sync");
+
 			logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		}
-
 	}
 
 	private static BoundingBox setUpBoundingBox(double latWS, double lonWS, double latEN, double lonEN) {
