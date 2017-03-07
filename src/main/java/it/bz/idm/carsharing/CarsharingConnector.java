@@ -22,8 +22,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.bz.idm.bdp.dto.DataTypeDto;
@@ -125,7 +129,8 @@ public class CarsharingConnector {
 		userAuth.setPassword(password);
 
 		headers = new HttpHeaders();
-		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+		headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON_UTF8));
 
 		boxes = new ArrayList<BoundingBox>();
 		boxes.add(setUpBoundingBox(46.86113, 10.375214, 46.459147, 11.059799));
@@ -148,23 +153,59 @@ public class CarsharingConnector {
 		logger.info("STATIC DATA STARTED AT " + now);
 
 		RestTemplate restTemplate = new RestTemplate();
+
+		List<HttpMessageConverter<?>> converters = restTemplate.getMessageConverters();
+		for (HttpMessageConverter<?> converter : converters) {
+			if (converter instanceof MappingJackson2HttpMessageConverter) {
+				try {
+
+					List<MediaType> mediaTypes = new ArrayList<>();
+					mediaTypes.add(MediaType.TEXT_HTML);
+					mediaTypes.add(MediaType.APPLICATION_JSON_UTF8);
+					((MappingJackson2HttpMessageConverter) converter).setSupportedMediaTypes(mediaTypes);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+
 		List<Integer> stationIds = new ArrayList<>();
 		for (BoundingBox box : boxes) {
 			MyListStationsByGeoPosRequest byGeoPosRequest = new MyListStationsByGeoPosRequest(userAuth, box);
 			HttpEntity<MyListStationsByGeoPosRequest> entity = new HttpEntity<MyListStationsByGeoPosRequest>(
 					byGeoPosRequest, headers);
-			ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity, String.class);
 
-			String response = exchange.getBody();
+			// htpp headers
+			//
+			// HttpHeaders headers = new HttpHeaders();
+			// headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
+			//
+			// UriComponentsBuilder builder =
+			// UriComponentsBuilder.fromHttpUrl(endpoint).queryParam("protocol",
+			// "json");
+			//
+			// // HttpEntity<?> entityH = new HttpEntity<>(headers);
+			//
+			// ListStationsByGeoPosResponse postForObject =
+			// restTemplate.postForObject(builder.build().encode().toUri(),
+			// byGeoPosRequest, ListStationsByGeoPosResponse.class);
+			//
+			// System.out.println(postForObject);
+			// // http headers END
+
+			ResponseEntity<ListStationsByGeoPosResponse> exchange = restTemplate.exchange(endpoint, HttpMethod.POST,
+					entity, ListStationsByGeoPosResponse.class);
+
+			ListStationsByGeoPosResponse response = exchange.getBody();
 
 			// parse to object
 			// check if station array is empty
-			ListStationsByGeoPosResponse stations = mapper.readValue(new StringReader(response),
-					ListStationsByGeoPosResponse.class);
-			if (stations != null)
-				for (Station station : stations.getStation()) {
-					stationIds.add(station.getUid());
-				}
+			// ListStationsByGeoPosResponse stations = mapper.readValue(new
+			// StringReader(response),
+			// ListStationsByGeoPosResponse.class);
+			// if (stations != null)
+			// for (Station station : stations.getStation())
+			// stationIds.add(station.getUid());
 			// Jackson
 		}
 
@@ -312,10 +353,11 @@ public class CarsharingConnector {
 				HttpEntity<MyListVehicleOccupancyByStationRequest> entity = new HttpEntity<MyListVehicleOccupancyByStationRequest>(
 						listVehicleOccupancyByStationRequestDto, headers);
 
-//				ListVehicleOccupancyByStationResponse postForObject = restTemplate.postForObject(endpoint, entity,
-//						ListVehicleOccupancyByStationResponse.class);
-//
-//				System.out.println(postForObject);
+				// ListVehicleOccupancyByStationResponse postForObject =
+				// restTemplate.postForObject(endpoint, entity,
+				// ListVehicleOccupancyByStationResponse.class);
+				//
+				// System.out.println(postForObject);
 
 				ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity,
 						String.class);
