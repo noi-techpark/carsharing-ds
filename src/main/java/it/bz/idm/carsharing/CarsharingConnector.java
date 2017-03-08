@@ -42,6 +42,8 @@ import it.bz.idm.bdp.dto.SimpleRecordDto;
 import it.bz.idm.bdp.dto.TypeMapDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
+import it.bz.idm.bdp.util.IntegreenException;
+import it.bz.idm.carsharing.MyListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.MyListVehiclesByStationResponse.StationAndVehicles;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
@@ -54,7 +56,6 @@ import it.bz.idm.carsharing.wsdl.GetStationResponse;
 import it.bz.idm.carsharing.wsdl.GetVehicleResponse;
 import it.bz.idm.carsharing.wsdl.ListStationsByGeoPosResponse;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse;
-import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.wsdl.ListVehiclesByStationResponse;
 import it.bz.idm.carsharing.wsdl.NeighborStation;
 import it.bz.idm.carsharing.wsdl.Station;
@@ -181,8 +182,7 @@ public class CarsharingConnector {
 		}
 	}
 
-	public HashMap<String, List<String>> connectForStaticData()
-			throws IOException {
+	public HashMap<String, List<String>> connectForStaticData() throws IOException {
 		Long now = System.currentTimeMillis();
 		logger.info("STATIC DATA STARTED AT " + now);
 
@@ -238,7 +238,7 @@ public class CarsharingConnector {
 		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
 		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
 			// station and vehicles
-//			activityLogger.getStationAndVehicles().add(stationAndVehicles);
+			// activityLogger.getStationAndVehicles().add(stationAndVehicles);
 			List<String> vehicleIds = new ArrayList<String>();
 			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getId(), vehicleIds);
 			for (int i = 0; i < stationAndVehicles.getVehicle().length; i++) {
@@ -251,22 +251,21 @@ public class CarsharingConnector {
 		//
 		MyGetVehicleRequest getVehicleRequestDto = new MyGetVehicleRequest(userAuth, vehicleIdsForDetailRequest);
 
-		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, 
-				getVehicleRequestDto, MyGetVehicleResponse.class);
+		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, getVehicleRequestDto,
+				MyGetVehicleResponse.class);
 
-		
 		System.out.println(getVehicleResponse);
 		///////////////////////////////////////////////////////////////
 		// Write data to integreen
 		///////////////////////////////////////////////////////////////
 
 		// Object syncStations =
-		// stationPusher.syncStations(getStationResponse.getStation().toArray());
+		// stationPusher.syncStations(stationDetailsResponse.getStation());
 		// if (syncStations instanceof IntegreenException)
 		// throw new IOException("IntegreenException: static Stations sync");
 		//
 		// Object syncCars =
-		// carPusher.syncStations(getVehicleResponse.getVehicle().toArray());
+		// carPusher.syncStations(getVehicleResponse.getVehicle());
 		// if (syncCars instanceof IntegreenException)
 		// throw new IOException("IntegreenException: static Cars sync");
 
@@ -275,8 +274,6 @@ public class CarsharingConnector {
 	}
 
 	public void connectForRealTimeData(HashMap<String, List<String>> vehicleIdsByStationIds) throws IOException {
-		RestTemplate restTemplate = new RestTemplate();
-
 		Long now = System.currentTimeMillis();
 		logger.info("REAL TIME DATA STARTED AT " + now);
 
@@ -306,54 +303,32 @@ public class CarsharingConnector {
 			}
 			Arrays.sort(stationIds);
 
-			HashMap<Integer, TypeMapDto> stationData = new HashMap<Integer, TypeMapDto>();
-			HashMap<Integer, TypeMapDto> vehicleData = new HashMap<Integer, TypeMapDto>();
+			HashMap<String, TypeMapDto> stationData = new HashMap<String, TypeMapDto>();
+			HashMap<String, TypeMapDto> vehicleData = new HashMap<String, TypeMapDto>();
 			for (String stationId : stationIds) {
 				List<String> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				MyListVehicleOccupancyByStationRequest listVehicleOccupancyByStationRequestDto = new MyListVehicleOccupancyByStationRequest(
 						userAuth, begin, end, stationId, vehicleIds.toArray(new String[0]));
-				HttpEntity<MyListVehicleOccupancyByStationRequest> entity = new HttpEntity<MyListVehicleOccupancyByStationRequest>(
-						listVehicleOccupancyByStationRequestDto, headers);
 
-				// ListVehicleOccupancyByStationResponse postForObject =
-				// restTemplate.postForObject(endpoint, entity,
-				// ListVehicleOccupancyByStationResponse.class);
-				//
-				// System.out.println(postForObject);
-
-				ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, entity,
-						String.class);
-				String vehicleOccupanciesResponse = exchange.getBody();
-
-				vehicleOccupanciesResponse = vehicleOccupanciesResponse
-						.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"")
-						.replace("\"occupancyKind\":\"Foreign\"", "\"occupancyKind\":\"FOREIGN\"")
-						.replace("\"occupancyKind\":\"Gap\"", "\"occupancyKind\":\"GAP\"");
-
-				ListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = mapper.readValue(
-						new StringReader(vehicleOccupanciesResponse), ListVehicleOccupancyByStationResponse.class);
+				MyListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = restTemplate
+						.postForObject(endpoint, listVehicleOccupancyByStationRequestDto,
+								MyListVehicleOccupancyByStationResponse.class);
 
 				// Same number of responses as the number to requests
-				if (listVehicleOccupancyByStationResponse.getVehicleAndOccupancies().size() != vehicleIds.size()) {
+				if (listVehicleOccupancyByStationResponse.getVehicleAndOccupancies().length != vehicleIds.size()) {
 					throw new IllegalStateException();
 				}
 				int free = 0;
 				for (VehicleAndOccupancies vehicleOccupancy : listVehicleOccupancyByStationResponse
 						.getVehicleAndOccupancies()) {
-					if (forecast == 0)
-						activityLogger.getVehicleAndOccupancies().add(vehicleOccupancy);
-
-					// if (vehicleOccupancy.getOccupancy().size() > 1) {
-					// throw new IllegalStateException("Why???");
-					// }
 					int state = 0; // free
-					if (vehicleOccupancy.getOccupancy().size() == 1) {
+					if (vehicleOccupancy.getOccupancy().length == 1) {
 						state = 1;
 					} else {
 						free++;
 					}
 					TypeMapDto typeMap = new TypeMapDto();
-					vehicleData.put(vehicleOccupancy.getVehicle().getVehicleUID(), typeMap);
+					vehicleData.put(vehicleOccupancy.getVehicle().getId(), typeMap);
 					String type = "unknown";
 					if (forecast == 0)
 						type = DataTypeDto.AVAILABILITY;
@@ -365,68 +340,25 @@ public class CarsharingConnector {
 						typeMap.getRecordsByType().put(type, dtos);
 					}
 					dtos.add(new SimpleRecordDto(now + forecast, state + 0., 600));
-
-					// for logging
-
-					// if (vo.getOccupancy() != null && vo.getOccupancy().size()
-					// > 0)
-					// for (Occupancy o : vo.getOccupancy()) {
-					// if (forecast == 0) {
-					// for (String key : vehicleIdsByStationNames.keySet()) {
-					// if
-					// (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
-					// logger.info("s: " + key + " vehicle: " +
-					// vo.getVehicle().getName() + " targa:"
-					// + vo.getVehicle().getLicensePlate() + " | occupancy:
-					// begin:"
-					// + o.getBegin() + " end:" + o.getEnd() + " kind:"
-					// + o.getOccupancyKind());
-					// }
-					// } else {
-					// for (String key : vehicleIdsByStationNames.keySet()) {
-					// if
-					// (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
-					// logger.info("(forecast) s: " + key + " vehicle: " +
-					// vo.getVehicle().getName()
-					// + " targa:" + vo.getVehicle().getLicensePlate() + " |
-					// occupancy: begin:"
-					// + o.getBegin() + " end:" + o.getEnd() + " kind:"
-					// + o.getOccupancyKind());
-					// }
-					// }
-
-					// }
-					// else {
-					// for (String key : vehicleIdsByStationNames.keySet()) {
-					// if
-					// (vehicleIdsByStationNames.get(key).contains(vo.getVehicle().getVehicleUID()))
-					// logger.info("FREE s: " + key + " vehicle: " +
-					// vo.getVehicle().getName() + " targa:"
-					// + vo.getVehicle().getLicensePlate());
-					// }
-					// }
 				}
 				Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
 				TypeMapDto typeMap = new TypeMapDto();
 				typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
 				if (forecast == 0)
 					dtos.add(new SimpleRecordDto(now + forecast, free + 0., 600));
-				stationData.put(Integer.parseInt(stationId), typeMap);
+				stationData.put(stationId, typeMap);
 			}
 			///////////////////////////////////////////////////////////////
 			// Write data to integreen
 			///////////////////////////////////////////////////////////////
 
-			// Object syncStations = stationPusher.syncStations(new Object[] {
-			// stationData });
-			// if (syncStations instanceof IntegreenException)
-			// throw new IOException("IntegreenException: real time stations
-			// sync");
-			//
-			// Object syncCars = carPusher.syncStations(new Object[] {
-			// vehicleData });
-			// if (syncCars instanceof IntegreenException)
-			// throw new IOException("IntegreenException: real time cars sync");
+//			Object syncStations = stationPusher.syncStations(new Object[] { stationData });
+//			if (syncStations instanceof IntegreenException)
+//				throw new IOException("IntegreenException: real time stations sync");
+//
+//			Object syncCars = carPusher.syncStations(new Object[] { vehicleData });
+//			if (syncCars instanceof IntegreenException)
+//				throw new IOException("IntegreenException: real time cars sync");
 
 			logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		}
