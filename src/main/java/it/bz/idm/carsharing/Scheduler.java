@@ -15,7 +15,7 @@ public class Scheduler {
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private HashMap<String, List<String>> vehicleIdsByStationIds;
 
-//	private HashMap<String, List<Integer>> vehicleIdsByStationNames;
+	// private HashMap<String, List<Integer>> vehicleIdsByStationNames;
 
 	// library missing
 	// IXMLRPCPusher xmlrpcPusher;
@@ -24,7 +24,7 @@ public class Scheduler {
 	private CarsharingConnector carsharingConnector;
 
 	public Scheduler() {
-//		vehicleIdsByStationNames = new HashMap<>();
+		// vehicleIdsByStationNames = new HashMap<>();
 	}
 
 	/**
@@ -47,8 +47,10 @@ public class Scheduler {
 	 * for getting real time data like the vehicle and stationlist from the
 	 * carsharingAPI and push them to te integreen-platform
 	 */
-	@Scheduled(fixedRate = 600000) // 10 minutes interval
+	// @Scheduled(fixedRate = 600000) // 10 minutes interval
 	// @Scheduled(fixedRate = 12000) // 2 minutes interval FOR TESTING
+	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM for
+										// example
 	public void realTimeTask() {
 		try {
 			if (vehicleIdsByStationIds != null) {

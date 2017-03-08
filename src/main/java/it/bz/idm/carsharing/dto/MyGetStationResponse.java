@@ -1,9 +1,18 @@
 package it.bz.idm.carsharing.dto;
 
-import java.util.List;
+import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
 
-import it.bz.idm.carsharing.wsdl.GetStationResponse;
-import it.bz.idm.carsharing.wsdl.Station;
+public class MyGetStationResponse{
+	
+	CarsharingStationDto[] carsharingStationDto;
 
-public class MyGetStationResponse {
+	   public void setStation(CarsharingStationDto[] station)
+	   {
+	      this.carsharingStationDto = station;
+	   }
+
+	   public it.bz.idm.bdp.dto.carsharing.CarsharingStationDto[] getStation()
+	   {
+	      return this.carsharingStationDto;
+	   }
 }

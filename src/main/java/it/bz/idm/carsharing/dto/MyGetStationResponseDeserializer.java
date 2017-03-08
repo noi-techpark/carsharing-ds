@@ -1,4 +1,4 @@
-package it.bz.idm.carsharing;
+package it.bz.idm.carsharing.dto;
 
 import java.io.IOException;
 

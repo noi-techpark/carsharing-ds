@@ -1,13 +1,13 @@
 package it.bz.idm.carsharing;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -15,27 +15,19 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 
-import org.codehaus.jackson.map.DeserializationConfig.Feature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 
 import it.bz.idm.bdp.dto.DataTypeDto;
 import it.bz.idm.bdp.dto.SimpleRecordDto;
@@ -43,24 +35,22 @@ import it.bz.idm.bdp.dto.TypeMapDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
 import it.bz.idm.bdp.util.IntegreenException;
-import it.bz.idm.carsharing.MyListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
-import it.bz.idm.carsharing.MyListVehiclesByStationResponse.StationAndVehicles;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
+import it.bz.idm.carsharing.dto.MyGetStationResponse;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
+import it.bz.idm.carsharing.dto.MyGetVehicleResponse;
 import it.bz.idm.carsharing.dto.MyListStationsByGeoPosRequest;
 import it.bz.idm.carsharing.dto.MyListVehicleOccupancyByStationRequest;
+import it.bz.idm.carsharing.dto.MyListVehicleOccupancyByStationResponse;
+import it.bz.idm.carsharing.dto.MyListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.dto.MyListVehiclesByStationRequest;
+import it.bz.idm.carsharing.dto.MyListVehiclesByStationResponse;
+import it.bz.idm.carsharing.dto.MyListVehiclesByStationResponse.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.BoundingBox;
 import it.bz.idm.carsharing.wsdl.GeoPos;
-import it.bz.idm.carsharing.wsdl.GetStationResponse;
-import it.bz.idm.carsharing.wsdl.GetVehicleResponse;
 import it.bz.idm.carsharing.wsdl.ListStationsByGeoPosResponse;
-import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse;
-import it.bz.idm.carsharing.wsdl.ListVehiclesByStationResponse;
-import it.bz.idm.carsharing.wsdl.NeighborStation;
 import it.bz.idm.carsharing.wsdl.Station;
 import it.bz.idm.carsharing.wsdl.UserAuth;
-import it.bz.idm.carsharing.wsdl.Vehicle;
 
 /**
  * class for connecting to the carsharing-platform, get the data and push them
@@ -72,14 +62,11 @@ import it.bz.idm.carsharing.wsdl.Vehicle;
 
 @Component
 public class CarsharingConnector {
-	// static final SimpleDateFormat SIMPLE_DATE_FORMAT = new
-	// SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 	final static long INTERVALL = 10L * 60L * 1000L;
 	public static final String CARSHARINGSTATION_DATASOURCE = "Carsharingstation";
 	public static final String CARSHARINGCAR_DATASOURCE = "Carsharingcar";
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
 
-	// private CarsharingConnectorConfiguration configuration;
 	@Autowired
 	private ActivityLogger activityLogger;
 
@@ -92,7 +79,6 @@ public class CarsharingConnector {
 	RestTemplate restTemplate;
 
 	private String endpoint;
-	// @Value("${cred.user}")
 	private String user;
 	private String password;
 
@@ -153,6 +139,7 @@ public class CarsharingConnector {
 		boxes.add(setUpBoundingBox(47.098175, 11.959305, 46.598506, 12.423477));
 
 		// halapi sends contenttype text/html instead of json. so we have to
+		// register text/html to the message converter
 		restTemplate = new RestTemplate();
 		List<HttpMessageConverter<?>> converters = restTemplate.getMessageConverters();
 		for (HttpMessageConverter<?> converter : converters) {
@@ -162,15 +149,8 @@ public class CarsharingConnector {
 				objectMapper.configure(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT, true);
 				objectMapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
 				objectMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-				objectMapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
-
-				// SimpleModule module = new SimpleModule();
-				// module.addDeserializer(NeighborStation.class, new
-				// MyNeighborStationDeserializer());
-				// objectMapper.registerModule(module);
 				((MappingJackson2HttpMessageConverter) converter).setObjectMapper(objectMapper);
 				try {
-
 					List<MediaType> mediaTypes = new ArrayList<>();
 					mediaTypes.add(MediaType.TEXT_HTML);
 					mediaTypes.add(MediaType.APPLICATION_JSON_UTF8);
@@ -198,9 +178,7 @@ public class CarsharingConnector {
 					stationIds.add(station.getUid());
 		}
 
-		///////////////////////////////////////////////////////////////
 		// Stations details
-		///////////////////////////////////////////////////////////////
 		MyGetStationRequest getStationRequest = new MyGetStationRequest(userAuth, stationIds);
 
 		MyGetStationResponse stationDetailsResponse = restTemplate.postForObject(endpoint, getStationRequest,
@@ -210,9 +188,7 @@ public class CarsharingConnector {
 		for (CarsharingStationDto s : stationDetailsResponse.getStation())
 			logger.info(s.getName());
 
-		//////////////////////////////////////////////////////////////
 		// Vehicles by stations
-		///////////////////////////////////////////////////////////////
 
 		MyListVehiclesByStationRequest vehicles = new MyListVehiclesByStationRequest(userAuth, stationIds);
 
@@ -220,25 +196,23 @@ public class CarsharingConnector {
 				MyListVehiclesByStationResponse.class);
 
 		logger.info("STATIONS AND VEHICLES");
-		for (StationAndVehicles sv : listVehiclesByStationResponse.getStationAndVehicles()) {
-			logger.info("station " + sv.getStation().getName());
+		for (StationAndVehicles stationAndvehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
+			logger.info("station " + stationAndvehicles.getStation().getName() + " id: "
+					+ stationAndvehicles.getStation().getId());
 			logger.info("VEHICLES");
 			List<String> vIds = new ArrayList<>();
-			for (CarsharingVehicleDto v : sv.getVehicle()) {
+			for (CarsharingVehicleDto v : stationAndvehicles.getVehicle()) {
 				logger.info("vehicle " + v.getName() + " targa: " + v.getLicensePlate());
 				vIds.add(v.getId());
 			}
 		}
 
-		///////////////////////////////////////////////////////////////
 		// Vehicles details
-		// ///////////////////////////////////////////////////////////////
 		activityLogger.getStationAndVehicles().clear();
 		HashMap<String, List<String>> vehicleIdsByStationIds = new HashMap<>();
 		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
 		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
 			// station and vehicles
-			// activityLogger.getStationAndVehicles().add(stationAndVehicles);
 			List<String> vehicleIds = new ArrayList<String>();
 			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getId(), vehicleIds);
 			for (int i = 0; i < stationAndVehicles.getVehicle().length; i++) {
@@ -246,18 +220,15 @@ public class CarsharingConnector {
 				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle()[i].getId());
 			}
 		}
-		//
-		// // getDetails
-		//
+		// getDetails
 		MyGetVehicleRequest getVehicleRequestDto = new MyGetVehicleRequest(userAuth, vehicleIdsForDetailRequest);
 
 		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, getVehicleRequestDto,
 				MyGetVehicleResponse.class);
 
 		System.out.println(getVehicleResponse);
-		///////////////////////////////////////////////////////////////
+
 		// Write data to integreen
-		///////////////////////////////////////////////////////////////
 
 		// Object syncStations =
 		// stationPusher.syncStations(stationDetailsResponse.getStation());
@@ -348,20 +319,36 @@ public class CarsharingConnector {
 					dtos.add(new SimpleRecordDto(now + forecast, free + 0., 600));
 				stationData.put(stationId, typeMap);
 			}
-			///////////////////////////////////////////////////////////////
+			// logging to compare with actual service
+			for (String stationId : stationData.keySet()) {
+
+				TypeMapDto typeMapDto = stationData.get(stationId);
+				Set<String> keySet = typeMapDto.getRecordsByType().keySet();
+				for (String recordsId : keySet) {
+					Iterator<SimpleRecordDto> iterator = typeMapDto.getRecordsByType().get(recordsId).iterator();
+					while (iterator.hasNext()) {
+						SimpleRecordDto next = iterator.next();
+						logger.info("STATION id: " + stationId + " type Ma= period: " + next.getPeriod() + " value: "
+								+ next.getValue() + " timestamp: " + next.getTimestamp());
+					}
+				}
+			}
+
 			// Write data to integreen
-			///////////////////////////////////////////////////////////////
 
-//			Object syncStations = stationPusher.syncStations(new Object[] { stationData });
-//			if (syncStations instanceof IntegreenException)
-//				throw new IOException("IntegreenException: real time stations sync");
-//
-//			Object syncCars = carPusher.syncStations(new Object[] { vehicleData });
-//			if (syncCars instanceof IntegreenException)
-//				throw new IOException("IntegreenException: real time cars sync");
+			// Object syncStations = stationPusher.pushData(new Object[] {
+			// stationData });
+			// if (syncStations instanceof IntegreenException)
+			// throw new IOException("IntegreenException: real time stations
+			// sync");
+			//
+			// Object syncCars = carPusher.pushData(new Object[] { vehicleData
+			// });
+			// if (syncCars instanceof IntegreenException)
+			// throw new IOException("IntegreenException: real time cars sync");
 
-			logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 		}
+		logger.info("REAL TIME DATA ENDED AFTER " + (System.currentTimeMillis() - now));
 	}
 
 	private static BoundingBox setUpBoundingBox(double latWS, double lonWS, double latEN, double lonEN) {

@@ -1,5 +1,5 @@
 
-package it.bz.idm.carsharing;
+package it.bz.idm.carsharing.dto;
 
 import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
 
