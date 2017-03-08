@@ -13,14 +13,14 @@ public class MyListVehicleOccupancyByStationRequest {
 	ListVehicleOccupancyByStationRequest request;
 
 	public MyListVehicleOccupancyByStationRequest(UserAuth technicalUser, XMLGregorianCalendar begin,
-			XMLGregorianCalendar end, Integer stationUID, Integer[] vehicleUids) {
+			XMLGregorianCalendar end, String stationUID, String[] vehicleUids) {
 		this.request = new ListVehicleOccupancyByStationRequest();
 		this.request.setTechnicalUser(technicalUser);
 		this.request.setBegin(begin);
 		this.request.setEnd(end);
-		this.request.setStationUID(stationUID);
-		for (Integer vehicleUid : vehicleUids)
-			this.request.getVehicleUID().add(vehicleUid);
+		this.request.setStationUID(Integer.parseInt(stationUID));
+		for (String vehicleUid : vehicleUids)
+			this.request.getVehicleUID().add(Integer.parseInt(vehicleUid));
 		this.function = "Api.listVehicleOccupancyByStation";
 	}
 	

@@ -9,11 +9,11 @@ public class MyGetVehicleRequest {
 	GetVehicleRequest request;
 	String function;
 
-	public MyGetVehicleRequest(UserAuth technicalUser, List<Integer> vehicleIds) {
+	public MyGetVehicleRequest(UserAuth technicalUser, List<String> vehicleIds) {
 		this.request = new GetVehicleRequest();
 		this.request.setTechnicalUser(technicalUser);
-		for (Integer vehicleId : vehicleIds)
-			this.request.getVehicleUID().add(vehicleId);
+		for (String vehicleId : vehicleIds)
+			this.request.getVehicleUID().add(Integer.parseInt(vehicleId));
 		this.function = "Api.getVehicle";
 	}
 

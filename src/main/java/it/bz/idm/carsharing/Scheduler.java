@@ -13,9 +13,9 @@ import org.springframework.stereotype.Component;
 public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
-	private HashMap<Integer, List<Integer>> vehicleIdsByStationIds;
+	private HashMap<String, List<String>> vehicleIdsByStationIds;
 
-	private HashMap<String, List<Integer>> vehicleIdsByStationNames;
+//	private HashMap<String, List<Integer>> vehicleIdsByStationNames;
 
 	// library missing
 	// IXMLRPCPusher xmlrpcPusher;
@@ -24,7 +24,7 @@ public class Scheduler {
 	private CarsharingConnector carsharingConnector;
 
 	public Scheduler() {
-		vehicleIdsByStationNames = new HashMap<>();
+//		vehicleIdsByStationNames = new HashMap<>();
 	}
 
 	/**
@@ -36,7 +36,7 @@ public class Scheduler {
 	public void staticTask() {
 
 		try {
-			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(vehicleIdsByStationNames);
+			vehicleIdsByStationIds = carsharingConnector.connectForStaticData();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -52,13 +52,13 @@ public class Scheduler {
 	public void realTimeTask() {
 		try {
 			if (vehicleIdsByStationIds != null) {
-				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, vehicleIdsByStationNames);
+				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds);
 			} else {
 				logger.info("Get Static Data for the first Time");
-				vehicleIdsByStationIds = carsharingConnector.connectForStaticData(vehicleIdsByStationNames);
+				vehicleIdsByStationIds = carsharingConnector.connectForStaticData();
 				logger.info("Get Static Data finished for the first Time");
 				logger.info("Real Time Task for the first Time");
-				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, vehicleIdsByStationNames);
+				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds);
 				logger.info("Real Time Task finished for the first Time");
 			}
 		} catch (IOException e) {

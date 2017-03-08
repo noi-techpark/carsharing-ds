@@ -10,9 +10,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
+
+import org.codehaus.jackson.map.DeserializationConfig.Feature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,14 +29,20 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+
 import it.bz.idm.bdp.dto.DataTypeDto;
 import it.bz.idm.bdp.dto.SimpleRecordDto;
 import it.bz.idm.bdp.dto.TypeMapDto;
-import it.bz.idm.bdp.util.IntegreenException;
+import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
+import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
+import it.bz.idm.carsharing.MyListVehiclesByStationResponse.StationAndVehicles;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
 import it.bz.idm.carsharing.dto.MyListStationsByGeoPosRequest;
@@ -47,8 +56,8 @@ import it.bz.idm.carsharing.wsdl.ListStationsByGeoPosResponse;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse;
 import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
 import it.bz.idm.carsharing.wsdl.ListVehiclesByStationResponse;
+import it.bz.idm.carsharing.wsdl.NeighborStation;
 import it.bz.idm.carsharing.wsdl.Station;
-import it.bz.idm.carsharing.wsdl.StationAndVehicles;
 import it.bz.idm.carsharing.wsdl.UserAuth;
 import it.bz.idm.carsharing.wsdl.Vehicle;
 
@@ -78,6 +87,8 @@ public class CarsharingConnector {
 
 	@Autowired
 	CarsharingCarSync carPusher;
+
+	RestTemplate restTemplate;
 
 	private String endpoint;
 	// @Value("${cred.user}")
@@ -140,23 +151,23 @@ public class CarsharingConnector {
 		boxes.add(setUpBoundingBox(47.018653, 11.092758, 46.794448, 11.797256));
 		boxes.add(setUpBoundingBox(47.098175, 11.959305, 46.598506, 12.423477));
 
-		mapper = new ObjectMapper();
-		mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-		mapper.configure(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT, true);
-		mapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
-		mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-	}
-
-	public HashMap<Integer, List<Integer>> connectForStaticData(HashMap<String, List<Integer>> vehicleIdsByStationNames)
-			throws IOException {
-		Long now = System.currentTimeMillis();
-		logger.info("STATIC DATA STARTED AT " + now);
-
-		RestTemplate restTemplate = new RestTemplate();
-
+		// halapi sends contenttype text/html instead of json. so we have to
+		restTemplate = new RestTemplate();
 		List<HttpMessageConverter<?>> converters = restTemplate.getMessageConverters();
 		for (HttpMessageConverter<?> converter : converters) {
 			if (converter instanceof MappingJackson2HttpMessageConverter) {
+				ObjectMapper objectMapper = new ObjectMapper();
+				objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+				objectMapper.configure(DeserializationFeature.ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT, true);
+				objectMapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, false);
+				objectMapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+				objectMapper.configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true);
+
+				// SimpleModule module = new SimpleModule();
+				// module.addDeserializer(NeighborStation.class, new
+				// MyNeighborStationDeserializer());
+				// objectMapper.registerModule(module);
+				((MappingJackson2HttpMessageConverter) converter).setObjectMapper(objectMapper);
 				try {
 
 					List<MediaType> mediaTypes = new ArrayList<>();
@@ -168,45 +179,23 @@ public class CarsharingConnector {
 				}
 			}
 		}
+	}
+
+	public HashMap<String, List<String>> connectForStaticData()
+			throws IOException {
+		Long now = System.currentTimeMillis();
+		logger.info("STATIC DATA STARTED AT " + now);
 
 		List<Integer> stationIds = new ArrayList<>();
 		for (BoundingBox box : boxes) {
 			MyListStationsByGeoPosRequest byGeoPosRequest = new MyListStationsByGeoPosRequest(userAuth, box);
-			HttpEntity<MyListStationsByGeoPosRequest> entity = new HttpEntity<MyListStationsByGeoPosRequest>(
-					byGeoPosRequest, headers);
 
-			// htpp headers
-			//
-			// HttpHeaders headers = new HttpHeaders();
-			// headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
-			//
-			// UriComponentsBuilder builder =
-			// UriComponentsBuilder.fromHttpUrl(endpoint).queryParam("protocol",
-			// "json");
-			//
-			// // HttpEntity<?> entityH = new HttpEntity<>(headers);
-			//
-			// ListStationsByGeoPosResponse postForObject =
-			// restTemplate.postForObject(builder.build().encode().toUri(),
-			// byGeoPosRequest, ListStationsByGeoPosResponse.class);
-			//
-			// System.out.println(postForObject);
-			// // http headers END
+			ListStationsByGeoPosResponse geoPosResponse = restTemplate.postForObject(endpoint, byGeoPosRequest,
+					ListStationsByGeoPosResponse.class);
 
-			ResponseEntity<ListStationsByGeoPosResponse> exchange = restTemplate.exchange(endpoint, HttpMethod.POST,
-					entity, ListStationsByGeoPosResponse.class);
-
-			ListStationsByGeoPosResponse response = exchange.getBody();
-
-			// parse to object
-			// check if station array is empty
-			// ListStationsByGeoPosResponse stations = mapper.readValue(new
-			// StringReader(response),
-			// ListStationsByGeoPosResponse.class);
-			// if (stations != null)
-			// for (Station station : stations.getStation())
-			// stationIds.add(station.getUid());
-			// Jackson
+			if (geoPosResponse != null)
+				for (Station station : geoPosResponse.getStation())
+					stationIds.add(station.getUid());
 		}
 
 		///////////////////////////////////////////////////////////////
@@ -214,20 +203,11 @@ public class CarsharingConnector {
 		///////////////////////////////////////////////////////////////
 		MyGetStationRequest getStationRequest = new MyGetStationRequest(userAuth, stationIds);
 
-		HttpEntity<MyGetStationRequest> getStationEntity = new HttpEntity<MyGetStationRequest>(getStationRequest,
-				headers);
-		ResponseEntity<String> exchange = restTemplate.exchange(endpoint, HttpMethod.POST, getStationEntity,
-				String.class);
-		String stationDetails = exchange.getBody();
+		MyGetStationResponse stationDetailsResponse = restTemplate.postForObject(endpoint, getStationRequest,
+				MyGetStationResponse.class);
 
-		// remove 'km' distance of NeighborStation to prevent
-		// InvalidFormatException-> String to Float
-		stationDetails = stationDetails.replace(" km", "");
-
-		GetStationResponse getStationResponse = mapper.readValue(new StringReader(stationDetails),
-				GetStationResponse.class);
 		logger.info("ALL STATIONS");
-		for (Station s : getStationResponse.getStation())
+		for (CarsharingStationDto s : stationDetailsResponse.getStation())
 			logger.info(s.getName());
 
 		//////////////////////////////////////////////////////////////
@@ -235,46 +215,35 @@ public class CarsharingConnector {
 		///////////////////////////////////////////////////////////////
 
 		MyListVehiclesByStationRequest vehicles = new MyListVehiclesByStationRequest(userAuth, stationIds);
-		HttpEntity<MyListVehiclesByStationRequest> vehicleListRequest = new HttpEntity<MyListVehiclesByStationRequest>(
-				vehicles, headers);
 
-		ResponseEntity<String> exchangeVehicle = restTemplate.exchange(endpoint, HttpMethod.POST, vehicleListRequest,
-				String.class);
-		String vehicleResponse = exchangeVehicle.getBody();
+		MyListVehiclesByStationResponse listVehiclesByStationResponse = restTemplate.postForObject(endpoint, vehicles,
+				MyListVehiclesByStationResponse.class);
 
-		// resplace vehicle with VEHICLE to prevent enum not found exception
-		vehicleResponse = vehicleResponse.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"");
-
-		// JUST FOR LOGGING AND PREPARING BEHICLEUUIDS BY STATION NAMES
-		ListVehiclesByStationResponse listVehiclesByStationResponse = mapper
-				.readValue(new StringReader(vehicleResponse), ListVehiclesByStationResponse.class);
 		logger.info("STATIONS AND VEHICLES");
 		for (StationAndVehicles sv : listVehiclesByStationResponse.getStationAndVehicles()) {
 			logger.info("station " + sv.getStation().getName());
 			logger.info("VEHICLES");
-			List<Integer> vIds = new ArrayList<>();
-			for (Vehicle v : sv.getVehicle()) {
+			List<String> vIds = new ArrayList<>();
+			for (CarsharingVehicleDto v : sv.getVehicle()) {
 				logger.info("vehicle " + v.getName() + " targa: " + v.getLicensePlate());
-				vIds.add(v.getVehicleUID());
+				vIds.add(v.getId());
 			}
-			vehicleIdsByStationNames.put(sv.getStation().getName(), vIds);
-
 		}
 
 		///////////////////////////////////////////////////////////////
 		// Vehicles details
 		// ///////////////////////////////////////////////////////////////
 		activityLogger.getStationAndVehicles().clear();
-		HashMap<Integer, List<Integer>> vehicleIdsByStationIds = new HashMap<>();
-		List<Integer> vehicleIdsForDetailRequest = new ArrayList<Integer>();
+		HashMap<String, List<String>> vehicleIdsByStationIds = new HashMap<>();
+		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
 		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
 			// station and vehicles
-			activityLogger.getStationAndVehicles().add(stationAndVehicles);
-			List<Integer> vehicleIds = new ArrayList<Integer>();
-			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getUid(), vehicleIds);
-			for (int i = 0; i < stationAndVehicles.getVehicle().size(); i++) {
-				vehicleIds.add(stationAndVehicles.getVehicle().get(i).getVehicleUID());
-				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle().get(i).getVehicleUID());
+//			activityLogger.getStationAndVehicles().add(stationAndVehicles);
+			List<String> vehicleIds = new ArrayList<String>();
+			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getId(), vehicleIds);
+			for (int i = 0; i < stationAndVehicles.getVehicle().length; i++) {
+				vehicleIds.add(stationAndVehicles.getVehicle()[i].getId());
+				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle()[i].getId());
 			}
 		}
 		//
@@ -282,17 +251,11 @@ public class CarsharingConnector {
 		//
 		MyGetVehicleRequest getVehicleRequestDto = new MyGetVehicleRequest(userAuth, vehicleIdsForDetailRequest);
 
-		HttpEntity<MyGetVehicleRequest> entityVehicleDetail = new HttpEntity<MyGetVehicleRequest>(getVehicleRequestDto,
-				headers);
-		ResponseEntity<String> exchangeVehicleDetail = restTemplate.exchange(endpoint, HttpMethod.POST,
-				entityVehicleDetail, String.class);
-		String vehicleDetailResponse = exchangeVehicleDetail.getBody();
+		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, 
+				getVehicleRequestDto, MyGetVehicleResponse.class);
 
-		vehicleDetailResponse = vehicleDetailResponse.replace("\"showType\":\"vehicle\"", "\"showType\":\"VEHICLE\"");
-
-		GetVehicleResponse getVehicleResponse = mapper.readValue(new StringReader(vehicleDetailResponse),
-				GetVehicleResponse.class);
-
+		
+		System.out.println(getVehicleResponse);
 		///////////////////////////////////////////////////////////////
 		// Write data to integreen
 		///////////////////////////////////////////////////////////////
@@ -311,8 +274,7 @@ public class CarsharingConnector {
 		return vehicleIdsByStationIds;
 	}
 
-	public void connectForRealTimeData(HashMap<Integer, List<Integer>> vehicleIdsByStationIds,
-			HashMap<String, List<Integer>> vehicleIdsByStationNames) throws IOException {
+	public void connectForRealTimeData(HashMap<String, List<String>> vehicleIdsByStationIds) throws IOException {
 		RestTemplate restTemplate = new RestTemplate();
 
 		Long now = System.currentTimeMillis();
@@ -336,9 +298,9 @@ public class CarsharingConnector {
 				e1.printStackTrace();
 			}
 
-			Integer[] stationIds = new Integer[vehicleIdsByStationIds.keySet().size()];
+			String[] stationIds = new String[vehicleIdsByStationIds.keySet().size()];
 			int i = 0;
-			for (Integer id : vehicleIdsByStationIds.keySet()) {
+			for (String id : vehicleIdsByStationIds.keySet()) {
 				stationIds[i] = id;
 				i++;
 			}
@@ -346,10 +308,10 @@ public class CarsharingConnector {
 
 			HashMap<Integer, TypeMapDto> stationData = new HashMap<Integer, TypeMapDto>();
 			HashMap<Integer, TypeMapDto> vehicleData = new HashMap<Integer, TypeMapDto>();
-			for (Integer stationId : stationIds) {
-				List<Integer> vehicleIds = vehicleIdsByStationIds.get(stationId);
+			for (String stationId : stationIds) {
+				List<String> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				MyListVehicleOccupancyByStationRequest listVehicleOccupancyByStationRequestDto = new MyListVehicleOccupancyByStationRequest(
-						userAuth, begin, end, stationId, vehicleIds.toArray(new Integer[0]));
+						userAuth, begin, end, stationId, vehicleIds.toArray(new String[0]));
 				HttpEntity<MyListVehicleOccupancyByStationRequest> entity = new HttpEntity<MyListVehicleOccupancyByStationRequest>(
 						listVehicleOccupancyByStationRequestDto, headers);
 
@@ -449,7 +411,7 @@ public class CarsharingConnector {
 				typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
 				if (forecast == 0)
 					dtos.add(new SimpleRecordDto(now + forecast, free + 0., 600));
-				stationData.put(stationId, typeMap);
+				stationData.put(Integer.parseInt(stationId), typeMap);
 			}
 			///////////////////////////////////////////////////////////////
 			// Write data to integreen
