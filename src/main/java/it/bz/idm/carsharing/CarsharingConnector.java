@@ -3,6 +3,7 @@ package it.bz.idm.carsharing;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -226,8 +227,6 @@ public class CarsharingConnector {
 		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, getVehicleRequestDto,
 				MyGetVehicleResponse.class);
 
-		System.out.println(getVehicleResponse);
-
 		// Write data to integreen
 
 		// Object syncStations =
@@ -248,14 +247,26 @@ public class CarsharingConnector {
 		Long now = System.currentTimeMillis();
 		logger.info("REAL TIME DATA STARTED AT " + now);
 
+		// TODO adjust timestamp now so, that it fits to the exact 10 minuts of
+		// an hour. for example 6.10 PM
+
 		// clean activity log
 		activityLogger.getVehicleAndOccupancies().clear();
 
 		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
+			// set the timestamp so, that the seconds and miliseconds are 0
+			Calendar cal1 = Calendar.getInstance();
+			cal1.setTimeInMillis(now + forecast);
+			cal1.set(Calendar.SECOND, 0);
+			cal1.set(Calendar.MILLISECOND, 0);
+			Calendar cal2 = Calendar.getInstance();
+			cal2.setTimeInMillis(now + forecast + INTERVALL);
+			cal2.set(Calendar.SECOND, 0);
+			cal2.set(Calendar.MILLISECOND, 0);
 			GregorianCalendar begin2 = new GregorianCalendar();
-			begin2.setTime(new Date(now + forecast));
+			begin2.setTime(cal1.getTime());
 			GregorianCalendar end2 = new GregorianCalendar();
-			end2.setTime(new Date(now + forecast + INTERVALL));
+			end2.setTime(cal2.getTime());
 			XMLGregorianCalendar begin = null;
 			XMLGregorianCalendar end = null;
 			try {
@@ -310,13 +321,13 @@ public class CarsharingConnector {
 						dtos = new HashSet<SimpleRecordDto>();
 						typeMap.getRecordsByType().put(type, dtos);
 					}
-					dtos.add(new SimpleRecordDto(now + forecast, state + 0., 600));
+					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), state + 0., 600));
 				}
 				Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
 				TypeMapDto typeMap = new TypeMapDto();
 				typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
 				if (forecast == 0)
-					dtos.add(new SimpleRecordDto(now + forecast, free + 0., 600));
+					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), free + 0., 600));
 				stationData.put(stationId, typeMap);
 			}
 			// logging to compare with actual service
