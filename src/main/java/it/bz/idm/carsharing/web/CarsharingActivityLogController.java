@@ -10,10 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
-
 import it.bz.idm.carsharing.ActivityLogger;
-import it.bz.idm.carsharing.wsdl.ListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
-import it.bz.idm.carsharing.wsdl.StationAndVehicles;
+import it.bz.idm.carsharing.dto.MyListVehicleOccupancyByStationResponse.VehicleAndOccupancies;
+import it.bz.idm.carsharing.dto.MyListVehiclesByStationResponse.StationAndVehicles;
 
 @RestController
 @RequestMapping("/carsharing/")
@@ -39,11 +38,10 @@ public class CarsharingActivityLogController {
 	public @ResponseBody ResponseEntity<List<VehicleAndOccupancies>> occupiedVehicles() {
 		List<VehicleAndOccupancies> list = new ArrayList<>();
 		for (VehicleAndOccupancies vo : activityLogger.getVehicleAndOccupancies())
-			if (vo.getOccupancy() != null && vo.getOccupancy().size() > 0)
+			if (vo.getOccupancy() != null && vo.getOccupancy().length > 0)
 				list.add(vo);
 		ResponseEntity<List<VehicleAndOccupancies>> responseEntity = new ResponseEntity<List<VehicleAndOccupancies>>(
 				list, HttpStatus.OK);
 		return responseEntity;
 	}
-	
 }

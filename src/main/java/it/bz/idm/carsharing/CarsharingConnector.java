@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -15,7 +14,6 @@ import java.util.Set;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,10 +24,8 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import it.bz.idm.bdp.dto.DataTypeDto;
 import it.bz.idm.bdp.dto.SimpleRecordDto;
 import it.bz.idm.bdp.dto.TypeMapDto;
@@ -70,6 +66,10 @@ public class CarsharingConnector {
 
 	@Autowired
 	private ActivityLogger activityLogger;
+
+	public ActivityLogger getActivityLogger() {
+		return activityLogger;
+	}
 
 	@Autowired
 	CarsharingStationSync stationPusher;
@@ -212,13 +212,19 @@ public class CarsharingConnector {
 		activityLogger.getStationAndVehicles().clear();
 		HashMap<String, List<String>> vehicleIdsByStationIds = new HashMap<>();
 		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
+
 		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
+
+			// write data to logger for testing
+			activityLogger.getStationAndVehicles().add(stationAndVehicles);
+
 			// station and vehicles
 			List<String> vehicleIds = new ArrayList<String>();
 			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getId(), vehicleIds);
 			for (int i = 0; i < stationAndVehicles.getVehicle().length; i++) {
 				vehicleIds.add(stationAndVehicles.getVehicle()[i].getId());
 				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle()[i].getId());
+
 			}
 		}
 		// getDetails
@@ -247,9 +253,6 @@ public class CarsharingConnector {
 		Long now = System.currentTimeMillis();
 		logger.info("REAL TIME DATA STARTED AT " + now);
 
-		// TODO adjust timestamp now so, that it fits to the exact 10 minuts of
-		// an hour. for example 6.10 PM
-
 		// clean activity log
 		activityLogger.getVehicleAndOccupancies().clear();
 
@@ -276,7 +279,6 @@ public class CarsharingConnector {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
-
 			String[] stationIds = new String[vehicleIdsByStationIds.keySet().size()];
 			int i = 0;
 			for (String id : vehicleIdsByStationIds.keySet()) {
@@ -331,14 +333,15 @@ public class CarsharingConnector {
 				stationData.put(stationId, typeMap);
 			}
 			// logging to compare with actual service
+			activityLogger.getRecords().clear();
 			for (String stationId : stationData.keySet()) {
-
 				TypeMapDto typeMapDto = stationData.get(stationId);
 				Set<String> keySet = typeMapDto.getRecordsByType().keySet();
 				for (String recordsId : keySet) {
 					Iterator<SimpleRecordDto> iterator = typeMapDto.getRecordsByType().get(recordsId).iterator();
 					while (iterator.hasNext()) {
 						SimpleRecordDto next = iterator.next();
+						activityLogger.getRecords().put(stationId, next);
 						logger.info("STATION id: " + stationId + " type Ma= period: " + next.getPeriod() + " value: "
 								+ next.getValue() + " timestamp: " + next.getTimestamp());
 					}
