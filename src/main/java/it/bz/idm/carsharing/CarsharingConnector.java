@@ -10,7 +10,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
@@ -173,7 +172,6 @@ public class CarsharingConnector {
 
 			ListStationsByGeoPosResponse geoPosResponse = restTemplate.postForObject(endpoint, byGeoPosRequest,
 					ListStationsByGeoPosResponse.class);
-
 			if (geoPosResponse != null)
 				for (Station station : geoPosResponse.getStation())
 					stationIds.add(station.getUid());
@@ -229,7 +227,6 @@ public class CarsharingConnector {
 		}
 		// getDetails
 		MyGetVehicleRequest getVehicleRequestDto = new MyGetVehicleRequest(userAuth, vehicleIdsForDetailRequest);
-
 		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, getVehicleRequestDto,
 				MyGetVehicleResponse.class);
 
@@ -255,6 +252,7 @@ public class CarsharingConnector {
 
 		// clean activity log
 		activityLogger.getVehicleAndOccupancies().clear();
+		activityLogger.getRecords().clear();
 
 		for (long forecast : new long[] { 0, 30L * 60L * 1000L }) {
 			// set the timestamp so, that the seconds and miliseconds are 0
@@ -286,7 +284,6 @@ public class CarsharingConnector {
 				i++;
 			}
 			Arrays.sort(stationIds);
-
 			HashMap<String, TypeMapDto> stationData = new HashMap<String, TypeMapDto>();
 			HashMap<String, TypeMapDto> vehicleData = new HashMap<String, TypeMapDto>();
 			for (String stationId : stationIds) {
@@ -333,7 +330,6 @@ public class CarsharingConnector {
 				stationData.put(stationId, typeMap);
 			}
 			// logging to compare with actual service
-			activityLogger.getRecords().clear();
 			for (String stationId : stationData.keySet()) {
 				TypeMapDto typeMapDto = stationData.get(stationId);
 				Set<String> keySet = typeMapDto.getRecordsByType().keySet();
