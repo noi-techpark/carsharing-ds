@@ -44,7 +44,6 @@ public class CarsharingTest {
 		try {
 			carsharingConnector.connectForRealTimeData(carsharingConnector.connectForStaticData());
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
