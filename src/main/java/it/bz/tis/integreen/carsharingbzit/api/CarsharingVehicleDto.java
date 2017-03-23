@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.api;
 
-import it.bz.tis.integreen.dto.StationDto;
+import it.bz.idm.bdp.dto.StationDto;
 
 /**
  * 

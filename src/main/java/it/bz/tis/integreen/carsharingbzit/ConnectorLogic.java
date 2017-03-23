@@ -19,6 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit;
 
+import it.bz.idm.bdp.dto.DataTypeDto;
+import it.bz.idm.bdp.dto.SimpleRecordDto;
+import it.bz.idm.bdp.dto.TypeMapDto;
+import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
+import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
 import it.bz.tis.integreen.carsharingbzit.api.ApiClient;
 import it.bz.tis.integreen.carsharingbzit.api.BoundingBox;
 import it.bz.tis.integreen.carsharingbzit.api.GetStationRequest;
@@ -35,12 +40,7 @@ import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsRequest;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse;
 import it.bz.tis.integreen.carsharingbzit.api.ListVehiclesByStationsResponse.StationAndVehicles;
 import it.bz.tis.integreen.carsharingbzit.tis.IXMLRPCPusher;
-import it.bz.tis.integreen.dto.DataTypeDto;
-import it.bz.tis.integreen.dto.SimpleRecordDto;
-import it.bz.tis.integreen.dto.TypeMapDto;
-import it.bz.tis.integreen.dto.carsharing.CarsharingStationDto;
-import it.bz.tis.integreen.dto.carsharing.CarsharingVehicleDto;
-import it.bz.tis.integreen.util.IntegreenException;
+
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -51,7 +51,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import util.IntegreenException;
+import it.bz.idm.bdp.util.IntegreenException;
 
 /**
  * 

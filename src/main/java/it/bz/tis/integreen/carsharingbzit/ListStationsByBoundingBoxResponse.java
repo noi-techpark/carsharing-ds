@@ -1,6 +1,6 @@
 package it.bz.tis.integreen.carsharingbzit;
 
-import it.bz.tis.integreen.dto.carsharing.CarsharingStationDto;
+import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
 
 public class ListStationsByBoundingBoxResponse {
 

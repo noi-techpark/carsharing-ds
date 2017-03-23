@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package it.bz.tis.integreen.carsharingbzit.tis;
 
-import it.bz.tis.integreen.xmlrpc.XMLRPCPusher;
+import it.bz.idm.bdp.xmlrpc.XMLRPCPusher;
 
 /**
  * 

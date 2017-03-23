@@ -26,14 +26,14 @@ package it.bz.tis.integreen.carsharingbzit.api;
 public class GetVehicleResponse
 {
 
-   it.bz.tis.integreen.dto.carsharing.CarsharingVehicleDto[] carsharingVehicleDto;
+	it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto[] carsharingVehicleDto;
 
-   public void setVehicle(it.bz.tis.integreen.dto.carsharing.CarsharingVehicleDto[] vehicle)
+   public void setVehicle(it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto[] vehicle)
    {
       this.carsharingVehicleDto = vehicle;
    }
 
-   public it.bz.tis.integreen.dto.carsharing.CarsharingVehicleDto[] getVehicle()
+   public it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto[] getVehicle()
    {
       return this.carsharingVehicleDto;
    }
