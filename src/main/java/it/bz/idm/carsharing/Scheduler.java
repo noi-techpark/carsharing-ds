@@ -21,11 +21,6 @@ public class Scheduler {
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private HashMap<String, List<String>> vehicleIdsByStationIds;
 
-	// private HashMap<String, List<Integer>> vehicleIdsByStationNames;
-
-	// library missing
-	// IXMLRPCPusher xmlrpcPusher;
-
 	@Autowired
 	private CarsharingConnector carsharingConnector;
 
@@ -35,16 +30,12 @@ public class Scheduler {
 	@Autowired
 	CarsharingCarSync carPusher;
 
-	public Scheduler() {
-		// vehicleIdsByStationNames = new HashMap<>();
-	}
 
 	/**
 	 * for getting the static data like vehicle and stationlist from the
 	 * carsharingAPI and push them to te integreen-platform
 	 */
 	@Scheduled(cron = "0 0 0 * * *") // every day at midnight
-	// @Scheduled(fixedRate = 18000) // 3 minutes interval FOR TESTING
 	public void staticTask() {
 		try {
 			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(stationPusher, carPusher);
@@ -58,11 +49,7 @@ public class Scheduler {
 	 * for getting real time data like the vehicle and stationlist from the
 	 * carsharingAPI and push them to te integreen-platform
 	 */
-	// @Scheduled(fixedRate = 600000) // 10 minutes interval
-	// @Scheduled(fixedRate = 12000) // 2 minutes interval FOR TESTING
 	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
-	// for
-	// example
 	public void realTimeTask() {
 		try {
 			if (vehicleIdsByStationIds != null) {
@@ -80,7 +67,7 @@ public class Scheduler {
 		}
 	}
 
-	// gets called after Spring context initialization
+	// gets called after Spring context initialization to sync the data types
 	@PostConstruct
 	public void syncDataTypes() throws IOException {
 		DataTypeDto availibilityDataTypeDto = new DataTypeDto();
