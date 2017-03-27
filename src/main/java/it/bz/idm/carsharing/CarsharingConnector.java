@@ -26,8 +26,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.bz.idm.bdp.dto.DataTypeDto;
 import it.bz.idm.bdp.dto.SimpleRecordDto;
 import it.bz.idm.bdp.dto.TypeMapDto;
-import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
-import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
 import it.bz.idm.bdp.util.IntegreenException;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetStationResponse;
@@ -59,12 +57,6 @@ public class CarsharingConnector {
 	final static long INTERVALL = 10L * 60L * 1000L;
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
 
-	@Autowired
-	private ActivityLogger activityLogger;
-
-	public ActivityLogger getActivityLogger() {
-		return activityLogger;
-	}
 
 	RestTemplate restTemplate;
 
@@ -169,10 +161,6 @@ public class CarsharingConnector {
 		MyGetStationResponse stationDetailsResponse = restTemplate.postForObject(endpoint, getStationRequest,
 				MyGetStationResponse.class);
 
-		logger.info("ALL STATIONS");
-		for (CarsharingStationDto s : stationDetailsResponse.getStation())
-			logger.info(s.getName());
-
 		// Vehicles by stations
 		MyListVehiclesByStationRequest vehicles = new MyListVehiclesByStationRequest(userAuth, stationIds);
 
@@ -180,15 +168,10 @@ public class CarsharingConnector {
 				MyListVehiclesByStationResponse.class);
 
 		// Vehicles details
-		activityLogger.getStationAndVehicles().clear();
 		HashMap<String, List<String>> vehicleIdsByStationIds = new HashMap<>();
 		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
 
 		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
-
-			// write data to logger for testing
-			activityLogger.getStationAndVehicles().add(stationAndVehicles);
-
 			// station and vehicles
 			List<String> vehicleIds = new ArrayList<String>();
 			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getId(), vehicleIds);
@@ -218,10 +201,6 @@ public class CarsharingConnector {
 			CarsharingStationSync stationPusher, CarsharingCarSync carPusher) throws IOException {
 		Long now = System.currentTimeMillis();
 		logger.info("REAL TIME DATA STARTED AT " + now);
-
-		// clean activity log
-		activityLogger.getVehicleAndOccupancies().clear();
-		activityLogger.getRecords().clear();
 
 		for (long forecast : new long[] { 0, INTERVALL }) {
 			// set the timestamp so, that the seconds and miliseconds are 0
