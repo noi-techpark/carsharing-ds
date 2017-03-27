@@ -125,6 +125,7 @@ public class CarsharingConnector {
 		// halapi sends contenttype text/html instead of json. so we have to
 		// register text/html to the message converter
 		restTemplate = new RestTemplate();
+		restTemplate.setErrorHandler(new RestTemplateErrorHandler());
 		List<HttpMessageConverter<?>> converters = restTemplate.getMessageConverters();
 		for (HttpMessageConverter<?> converter : converters) {
 			if (converter instanceof MappingJackson2HttpMessageConverter) {
@@ -177,18 +178,6 @@ public class CarsharingConnector {
 
 		MyListVehiclesByStationResponse listVehiclesByStationResponse = restTemplate.postForObject(endpoint, vehicles,
 				MyListVehiclesByStationResponse.class);
-
-		logger.info("STATIONS AND VEHICLES");
-		for (StationAndVehicles stationAndvehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
-			logger.info("station " + stationAndvehicles.getStation().getName() + " id: "
-					+ stationAndvehicles.getStation().getId());
-			logger.info("VEHICLES");
-			List<String> vIds = new ArrayList<>();
-			for (CarsharingVehicleDto v : stationAndvehicles.getVehicle()) {
-				logger.info("vehicle " + v.getName() + " targa: " + v.getLicensePlate());
-				vIds.add(v.getId());
-			}
-		}
 
 		// Vehicles details
 		activityLogger.getStationAndVehicles().clear();
@@ -295,36 +284,6 @@ public class CarsharingConnector {
 				typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
 				stationData.put(stationId, typeMap);
 			}
-			// testing
-//			logger.info("Vehicle REAL-TIME TESTING");
-//			Set<String> vehicleKeys = vehicleData.keySet();
-//			for (String key : vehicleKeys) {
-//				logger.info("vkey: " + key);
-//				TypeMapDto typeMapDto = vehicleData.get(key);
-//				Set<String> typeMapKeys = typeMapDto.getRecordsByType().keySet();
-//				for (String typeMapkey : typeMapKeys) {
-//					logger.info("typemap key: " + typeMapkey);
-//					Set<SimpleRecordDto> set = typeMapDto.getRecordsByType().get(typeMapkey);
-//					for (SimpleRecordDto dto : set)
-//						logger.info("simple record: value= " + dto.getValue() + " timestamp= " + dto.getTimestamp()
-//								+ " perdiod= " + dto.getPeriod());
-//				}
-//			}
-//
-//			logger.info("Station REAL-TIME TESTING");
-//			for (String stationKey : stationData.keySet()) {
-//				logger.info("skey: " + stationKey);
-//				TypeMapDto typeMapDto = stationData.get(stationKey);
-//				Set<String> keySet = typeMapDto.getRecordsByType().keySet();
-//				for (String typeKey : keySet) {
-//					logger.info("typemap key: " + typeKey);
-//					Set<SimpleRecordDto> set = typeMapDto.getRecordsByType().get(typeKey);
-//					for (SimpleRecordDto dto : set)
-//						logger.info("simple record: value= " + dto.getValue() + " timestamp= " + dto.getTimestamp()
-//								+ " perdiod= " + dto.getPeriod());
-//				}
-//			}
-			
 
 			// Write data to integreen
 			Object pushStations = stationPusher.pushData(new Object[] { stationData });

@@ -86,17 +86,14 @@ public class Scheduler {
 		DataTypeDto availibilityDataTypeDto = new DataTypeDto();
 		availibilityDataTypeDto.setDescription("Carsharing Car avalibility");
 		availibilityDataTypeDto.setName(DataTypeDto.AVAILABILITY);
-		// availibilityDataTypeDto.setRtype(DataTypeDto.AVAILABILITY);
 
 		DataTypeDto futureAvailibilityDataTypeDto = new DataTypeDto();
 		futureAvailibilityDataTypeDto.setDescription("Carsharing Car future-avalibility");
 		futureAvailibilityDataTypeDto.setName(DataTypeDto.FUTURE_AVAILABILITY);
-		// futureAvailibilityDataTypeDto.setRtype(DataTypeDto.FUTURE_AVAILABILITY);
 
 		DataTypeDto numberAvailableDataTypeDto = new DataTypeDto();
 		numberAvailableDataTypeDto.setDescription("Carsharing Station number-available");
 		numberAvailableDataTypeDto.setName(DataTypeDto.NUMBER_AVAILABE);
-		// numberAvailableDataTypeDto.setRtype(DataTypeDto.NUMBER_AVAILABE);
 
 		Object syncStaionDataTypes = stationPusher.syncDataTypes(new Object[] { numberAvailableDataTypeDto });
 		if (syncStaionDataTypes instanceof IntegreenException)
