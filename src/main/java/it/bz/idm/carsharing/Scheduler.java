@@ -30,7 +30,6 @@ public class Scheduler {
 	@Autowired
 	CarsharingCarSync carPusher;
 
-
 	/**
 	 * for getting the static data like vehicle and stationlist from the
 	 * carsharingAPI and push them to te integreen-platform
@@ -40,7 +39,6 @@ public class Scheduler {
 		try {
 			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(stationPusher, carPusher);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -52,16 +50,7 @@ public class Scheduler {
 	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
 	public void realTimeTask() {
 		try {
-			if (vehicleIdsByStationIds != null) {
-				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, stationPusher, carPusher);
-			} else {
-				logger.info("Get Static Data for the first Time");
-				vehicleIdsByStationIds = carsharingConnector.connectForStaticData(stationPusher, carPusher);
-				logger.info("Get Static Data finished for the first Time");
-				logger.info("Real Time Task for the first Time");
-				carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, stationPusher, carPusher);
-				logger.info("Real Time Task finished for the first Time");
-			}
+			carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, stationPusher, carPusher);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -90,5 +79,9 @@ public class Scheduler {
 		if (syncCarDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: car dataType syncing");
 		logger.info("Data Types sync finished");
+		
+		
+		vehicleIdsByStationIds = carsharingConnector.connectForStaticData(stationPusher, carPusher);
+		logger.info("Static Data Task finished for first Time");
 	}
 }
