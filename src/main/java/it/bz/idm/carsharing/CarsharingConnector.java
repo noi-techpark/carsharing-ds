@@ -246,6 +246,10 @@ public class CarsharingConnector {
 				if (listVehicleOccupancyByStationResponse != null
 						&& listVehicleOccupancyByStationResponse.getVehicleAndOccupancies() != null) {
 
+					if (listVehicleOccupancyByStationResponse.getVehicleAndOccupancies().length != vehicleIds.size()) {
+						throw new IllegalStateException();
+					}
+
 					for (VehicleAndOccupancies vehicleOccupancy : listVehicleOccupancyByStationResponse
 							.getVehicleAndOccupancies()) {
 						double state = 0; // free
