@@ -9,9 +9,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +23,10 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import it.bz.idm.bdp.dto.DataTypeDto;
 import it.bz.idm.bdp.dto.SimpleRecordDto;
 import it.bz.idm.bdp.dto.TypeMapDto;
@@ -56,7 +60,6 @@ import it.bz.idm.carsharing.wsdl.UserAuth;
 public class CarsharingConnector {
 	final static long INTERVALL = 10L * 60L * 1000L;
 	private final Logger logger = LoggerFactory.getLogger(CarsharingConnector.class);
-
 
 	RestTemplate restTemplate;
 
@@ -203,21 +206,22 @@ public class CarsharingConnector {
 		logger.info("REAL TIME DATA STARTED AT " + now);
 
 		for (long forecast : new long[] { 0, INTERVALL }) {
-			// set the timestamp so, that the seconds and miliseconds are 0
-			Calendar cal1 = Calendar.getInstance();
-			cal1.setTimeInMillis(now + forecast);
-			cal1.set(Calendar.SECOND, 0);
-			cal1.set(Calendar.MILLISECOND, 0);
-			Calendar cal2 = Calendar.getInstance();
-			cal2.setTimeInMillis(now + forecast + INTERVALL);
-			cal2.set(Calendar.SECOND, 0);
-			cal2.set(Calendar.MILLISECOND, 0);
+			// sets the timestamp so, that the seconds and miliseconds are 0
+			Calendar calBegin = Calendar.getInstance();
+			calBegin.setTimeInMillis(now + forecast);
+			calBegin.set(Calendar.SECOND, 0);
+			calBegin.set(Calendar.MILLISECOND, 0);
+			Calendar calEnd = Calendar.getInstance();
+			calEnd.setTimeInMillis(now + forecast + INTERVALL);
+			calEnd.set(Calendar.SECOND, 0);
+			calEnd.set(Calendar.MILLISECOND, 0);
 			GregorianCalendar begin2 = new GregorianCalendar();
-			begin2.setTime(cal1.getTime());
+			begin2.setTime(calBegin.getTime());
 			GregorianCalendar end2 = new GregorianCalendar();
-			end2.setTime(cal2.getTime());
+			end2.setTime(calEnd.getTime());
 			XMLGregorianCalendar begin = null;
 			XMLGregorianCalendar end = null;
+
 			try {
 				begin = DatatypeFactory.newInstance().newXMLGregorianCalendar(begin2);
 				end = DatatypeFactory.newInstance().newXMLGregorianCalendar(end2);
@@ -237,31 +241,38 @@ public class CarsharingConnector {
 						.postForObject(endpoint, listVehicleOccupancyByStationRequestDto,
 								MyListVehicleOccupancyByStationResponse.class);
 				double freeVehicles = 0.;
-				for (VehicleAndOccupancies vehicleOccupancy : listVehicleOccupancyByStationResponse
-						.getVehicleAndOccupancies()) {
-					double state = 0; // free
-					if (vehicleOccupancy.getOccupancy().length == 1)
-						state = 1;
-					else
-						freeVehicles++;
-					TypeMapDto typeMap = new TypeMapDto();
-					String type = "unknown";
-					if (forecast == 0)
-						type = DataTypeDto.AVAILABILITY;
-					else
-						type = DataTypeDto.FUTURE_AVAILABILITY;
-					// write vehicle state to vehicleData
+
+				// to avoid nullPointException
+				if (listVehicleOccupancyByStationResponse != null
+						&& listVehicleOccupancyByStationResponse.getVehicleAndOccupancies() != null) {
+
+					for (VehicleAndOccupancies vehicleOccupancy : listVehicleOccupancyByStationResponse
+							.getVehicleAndOccupancies()) {
+						double state = 0; // free
+						if (vehicleOccupancy.getOccupancy().length == 1)
+							state = 1;
+						else
+							freeVehicles++;
+						TypeMapDto typeMap = new TypeMapDto();
+						String type = "unknown";
+						if (forecast == 0)
+							type = DataTypeDto.AVAILABILITY;
+						else
+							type = DataTypeDto.FUTURE_AVAILABILITY;
+						// write vehicle state to vehicleData
+						Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
+						dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), state, 600));
+						typeMap.getRecordsByType().put(type, dtos);
+						vehicleData.put(vehicleOccupancy.getVehicle().getId(), typeMap);
+					}
+
+					// write available vehicles to stationData
 					Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
-					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), state, 600));
-					typeMap.getRecordsByType().put(type, dtos);
-					vehicleData.put(vehicleOccupancy.getVehicle().getId(), typeMap);
+					TypeMapDto typeMap = new TypeMapDto();
+					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), freeVehicles, 600));
+					typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
+					stationData.put(stationId, typeMap);
 				}
-				// write available vehicles to stationData
-				Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
-				TypeMapDto typeMap = new TypeMapDto();
-				dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), freeVehicles, 600));
-				typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
-				stationData.put(stationId, typeMap);
 			}
 
 			// Write data to integreen

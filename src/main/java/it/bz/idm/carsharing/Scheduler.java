@@ -32,7 +32,7 @@ public class Scheduler {
 
 	/**
 	 * for getting the static data like vehicle and stationlist from the
-	 * carsharingAPI and push them to te integreen-platform
+	 * carsharingAPI and push them to the integreen-platform
 	 */
 	@Scheduled(cron = "0 0 0 * * *") // every day at midnight
 	public void staticTask() {
@@ -45,7 +45,7 @@ public class Scheduler {
 
 	/**
 	 * for getting real time data like the vehicle and stationlist from the
-	 * carsharingAPI and push them to te integreen-platform
+	 * carsharingAPI and push them to the integreen-platform
 	 */
 	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
 	public void realTimeTask() {
@@ -79,8 +79,8 @@ public class Scheduler {
 		if (syncCarDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: car dataType syncing");
 		logger.info("Data Types sync finished");
-		
-		
+
+		// execute static task for first time to fill vehicleOdsVyStationId
 		vehicleIdsByStationIds = carsharingConnector.connectForStaticData(stationPusher, carPusher);
 		logger.info("Static Data Task finished for first Time");
 	}
