@@ -173,16 +173,16 @@ public class CarsharingConnector {
 		// Vehicles details
 		HashMap<String, List<String>> vehicleIdsByStationIds = new HashMap<>();
 		List<String> vehicleIdsForDetailRequest = new ArrayList<String>();
-
-		for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
-			// station and vehicles
-			List<String> vehicleIds = new ArrayList<String>();
-			vehicleIdsByStationIds.put(stationAndVehicles.getStation().getId(), vehicleIds);
-			for (int i = 0; i < stationAndVehicles.getVehicle().length; i++) {
-				vehicleIds.add(stationAndVehicles.getVehicle()[i].getId());
-				vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle()[i].getId());
+		if (listVehiclesByStationResponse != null && listVehiclesByStationResponse.getStationAndVehicles() != null)
+			for (StationAndVehicles stationAndVehicles : listVehiclesByStationResponse.getStationAndVehicles()) {
+				// station and vehicles
+				List<String> vehicleIds = new ArrayList<String>();
+				vehicleIdsByStationIds.put(stationAndVehicles.getStation().getId(), vehicleIds);
+				for (int i = 0; i < stationAndVehicles.getVehicle().length; i++) {
+					vehicleIds.add(stationAndVehicles.getVehicle()[i].getId());
+					vehicleIdsForDetailRequest.add(stationAndVehicles.getVehicle()[i].getId());
+				}
 			}
-		}
 		// getDetails
 		MyGetVehicleRequest getVehicleRequestDto = new MyGetVehicleRequest(userAuth, vehicleIdsForDetailRequest);
 		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, getVehicleRequestDto,
