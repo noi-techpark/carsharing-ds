@@ -8,6 +8,7 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.xml.datatype.DatatypeConfigurationException;
@@ -28,7 +29,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import it.bz.idm.bdp.dto.DataTypeDto;
-import it.bz.idm.bdp.dto.SimpleRecordDto;
+import it.bz.idm.bdp.dto.ShortRecordDto;
 import it.bz.idm.bdp.dto.TypeMapDto;
 import it.bz.idm.bdp.util.IntegreenException;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
@@ -230,8 +231,8 @@ public class CarsharingConnector {
 			}
 			String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
 			Arrays.sort(stationIds);
-			HashMap<String, TypeMapDto> stationData = new HashMap<String, TypeMapDto>();
-			HashMap<String, TypeMapDto> vehicleData = new HashMap<String, TypeMapDto>();
+			HashMap<String, Map<String,Set<ShortRecordDto>>> stationData = new HashMap<String, Map<String,Set<ShortRecordDto>>>();
+			HashMap<String, Map<String,Set<ShortRecordDto>>> vehicleData = new HashMap<String, Map<String,Set<ShortRecordDto>>>();
 			for (String stationId : stationIds) {
 				List<String> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				MyListVehicleOccupancyByStationRequest listVehicleOccupancyByStationRequestDto = new MyListVehicleOccupancyByStationRequest(
@@ -240,7 +241,7 @@ public class CarsharingConnector {
 				MyListVehicleOccupancyByStationResponse listVehicleOccupancyByStationResponse = restTemplate
 						.postForObject(endpoint, listVehicleOccupancyByStationRequestDto,
 								MyListVehicleOccupancyByStationResponse.class);
-				double freeVehicles = 0.;
+				Short freeVehicles = 0;
 
 				// to avoid nullPointException
 				if (listVehicleOccupancyByStationResponse != null
@@ -252,29 +253,29 @@ public class CarsharingConnector {
 
 					for (VehicleAndOccupancies vehicleOccupancy : listVehicleOccupancyByStationResponse
 							.getVehicleAndOccupancies()) {
-						double state = 0; // free
+						Short state = 0; // free
 						if (vehicleOccupancy.getOccupancy().length == 1)
 							state = 1;
 						else
 							freeVehicles++;
-						TypeMapDto typeMap = new TypeMapDto();
+						Map<String,Set<ShortRecordDto>> typeMap = new HashMap<>();
 						String type = "unknown";
 						if (forecast == 0)
 							type = DataTypeDto.AVAILABILITY;
 						else
 							type = DataTypeDto.FUTURE_AVAILABILITY;
 						// write vehicle state to vehicleData
-						Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
-						dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), state, 600));
-						typeMap.getRecordsByType().put(type, dtos);
+						Set<ShortRecordDto> dtos = new HashSet<ShortRecordDto>();
+						dtos.add(new ShortRecordDto(begin2.getTimeInMillis(), state, 600));
+						typeMap.put(type, dtos);
 						vehicleData.put(vehicleOccupancy.getVehicle().getId(), typeMap);
 					}
 
 					// write available vehicles to stationData
-					Set<SimpleRecordDto> dtos = new HashSet<SimpleRecordDto>();
-					TypeMapDto typeMap = new TypeMapDto();
-					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), freeVehicles, 600));
-					typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
+					Set<ShortRecordDto> dtos = new HashSet<ShortRecordDto>();
+					Map<String,Set<ShortRecordDto>> typeMap = new HashMap<>();
+					dtos.add(new ShortRecordDto(begin2.getTimeInMillis(), freeVehicles, 600));
+					typeMap.put(DataTypeDto.NUMBER_AVAILABE, dtos);
 					stationData.put(stationId, typeMap);
 				}
 			}

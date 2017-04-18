@@ -47,7 +47,8 @@ public class Scheduler {
 	 * for getting real time data like the vehicle and stationlist from the
 	 * carsharingAPI and push them to the integreen-platform
 	 */
-	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
+//	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
+	@Scheduled(fixedRate=36000)
 	public void realTimeTask() {
 		try {
 			carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, stationPusher, carPusher);
