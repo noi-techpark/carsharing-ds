@@ -10,9 +10,8 @@ import it.bz.idm.json.JSONPusher;
 public class JsonCarsharingPusher extends JSONPusher {
 	
 	@Autowired
-	public JsonCarsharingPusher(@Value("${json_push_url}") String urlPush, @Value("${json_sync_url}") String urlSync,
-			@Value("${json_datatype_url}") String urlSyncDataTypes) {
-		super(urlPush, urlSync, urlSyncDataTypes);
+	public JsonCarsharingPusher(@Value("${json_url}") String endpoint) {
+		super(endpoint);
 	}
 
 }
