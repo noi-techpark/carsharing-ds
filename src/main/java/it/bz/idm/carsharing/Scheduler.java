@@ -20,15 +20,18 @@ public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private HashMap<String, List<String>> vehicleIdsByStationIds;
+	
+	@Autowired
+	private JsonCarsharingPusher jsonCarsharingPusher;
 
 	@Autowired
 	private CarsharingConnector carsharingConnector;
 
-	@Autowired
-	CarsharingStationSync stationPusher;
-
-	@Autowired
-	CarsharingCarSync carPusher;
+//	@Autowired
+//	CarsharingStationSync stationPusher;
+//
+//	@Autowired
+//	CarsharingCarSync carPusher;
 
 	/**
 	 * for getting the static data like vehicle and stationlist from the
@@ -37,7 +40,7 @@ public class Scheduler {
 	@Scheduled(cron = "0 0 0 * * *") // every day at midnight
 	public void staticTask() {
 		try {
-			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(stationPusher, carPusher);
+			vehicleIdsByStationIds = carsharingConnector.connectForStaticData(jsonCarsharingPusher);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -47,11 +50,11 @@ public class Scheduler {
 	 * for getting real time data like the vehicle and stationlist from the
 	 * carsharingAPI and push them to the integreen-platform
 	 */
-//	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
-	@Scheduled(fixedRate=36000)
+	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
+	// @Scheduled(fixedRate=36000) //for faster testing
 	public void realTimeTask() {
 		try {
-			carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, stationPusher, carPusher);
+			carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds,jsonCarsharingPusher);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -72,17 +75,17 @@ public class Scheduler {
 		numberAvailableDataTypeDto.setDescription("Carsharing Station number-available");
 		numberAvailableDataTypeDto.setName(DataTypeDto.NUMBER_AVAILABE);
 
-		Object syncStaionDataTypes = stationPusher.syncDataTypes(new Object[] { numberAvailableDataTypeDto });
+		Object syncStaionDataTypes = jsonCarsharingPusher.syncDataTypes(new Object[] { "Carsharingstation",numberAvailableDataTypeDto });
 		if (syncStaionDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: station dataType syncing");
-		Object syncCarDataTypes = carPusher
-				.syncDataTypes(new Object[] { availibilityDataTypeDto, futureAvailibilityDataTypeDto });
+		Object syncCarDataTypes = jsonCarsharingPusher
+				.syncDataTypes(new Object[] {"Carsharingcar", availibilityDataTypeDto, futureAvailibilityDataTypeDto });
 		if (syncCarDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: car dataType syncing");
 		logger.info("Data Types sync finished");
 
 		// execute static task for first time to fill vehicleOdsVyStationId
-		vehicleIdsByStationIds = carsharingConnector.connectForStaticData(stationPusher, carPusher);
+		vehicleIdsByStationIds = carsharingConnector.connectForStaticData(jsonCarsharingPusher);
 		logger.info("Static Data Task finished for first Time");
 	}
 }
