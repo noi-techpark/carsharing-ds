@@ -75,11 +75,11 @@ public class Scheduler {
 		numberAvailableDataTypeDto.setDescription("Carsharing Station number-available");
 		numberAvailableDataTypeDto.setName(DataTypeDto.NUMBER_AVAILABE);
 
-		Object syncStaionDataTypes = jsonCarsharingPusher.syncDataTypes(new Object[] { "Carsharingstation",numberAvailableDataTypeDto });
+		Object syncStaionDataTypes = jsonCarsharingPusher.syncDataTypes(new Object[] {numberAvailableDataTypeDto });
 		if (syncStaionDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: station dataType syncing");
 		Object syncCarDataTypes = jsonCarsharingPusher
-				.syncDataTypes(new Object[] {"Carsharingcar", availibilityDataTypeDto, futureAvailibilityDataTypeDto });
+				.syncDataTypes(new Object[] { availibilityDataTypeDto, futureAvailibilityDataTypeDto });
 		if (syncCarDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: car dataType syncing");
 		logger.info("Data Types sync finished");
