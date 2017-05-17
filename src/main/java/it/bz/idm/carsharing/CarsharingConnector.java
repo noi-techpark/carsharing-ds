@@ -32,9 +32,9 @@ import it.bz.idm.bdp.dto.DataTypeDto;
 import it.bz.idm.bdp.dto.ShortRecordDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
-import it.bz.idm.bdp.dto.carsharing.JsonCarsharingStationDto;
-import it.bz.idm.bdp.dto.carsharing.JsonCarsharingVehicleDto;
 import it.bz.idm.bdp.util.IntegreenException;
+import it.bz.idm.carsharing.dto.MyCarsharingStationDto;
+import it.bz.idm.carsharing.dto.MyCarsharingVehicleDto;
 import it.bz.idm.carsharing.dto.MyGetStationRequest;
 import it.bz.idm.carsharing.dto.MyGetStationResponse;
 import it.bz.idm.carsharing.dto.MyGetVehicleRequest;
@@ -70,7 +70,7 @@ public class CarsharingConnector {
 	private String endpoint;
 	private String user;
 	private String password;
-	
+
 	private final String INTEGREEN_CAR = "Carsharingcar";
 	private final String INTEGREEN_STATION = "Carsharingstation";
 
@@ -195,14 +195,18 @@ public class CarsharingConnector {
 		MyGetVehicleResponse getVehicleResponse = restTemplate.postForObject(endpoint, getVehicleRequestDto,
 				MyGetVehicleResponse.class);
 		// Write data to integreen
+
+		// prepare for json service
 		
-		//prepare for json service
-		JsonCarsharingStationDto[] jsonStations = JsonCarsharingStationDto.convertToJson(stationDetailsResponse.getStation());
-		JsonCarsharingVehicleDto[] jsonVehicles = JsonCarsharingVehicleDto.convertToJson(getVehicleResponse.getVehicle());
-		Object syncStations = jsonCarsharingPusher.syncStations(jsonStations,INTEGREEN_STATION);
+		// convert to StationDto
+		CarsharingStationDto[] stationsDtos = MyCarsharingStationDto
+				.convertToStationDto(stationDetailsResponse.getStation());
+		CarsharingVehicleDto[] vehiclesDtos = MyCarsharingVehicleDto
+				.convertToStationDto(getVehicleResponse.getVehicle());
+		Object syncStations = jsonCarsharingPusher.syncStations( INTEGREEN_STATION,stationsDtos);
 		if (syncStations instanceof IntegreenException)
 			throw new IOException("IntegreenException: static Stations sync");
-		Object syncCars = jsonCarsharingPusher.syncStations(jsonVehicles,INTEGREEN_CAR);
+		Object syncCars = jsonCarsharingPusher.syncStations(INTEGREEN_CAR,vehiclesDtos);
 		if (syncCars instanceof IntegreenException)
 			throw new IOException("IntegreenException: static Cars sync");
 
@@ -275,7 +279,7 @@ public class CarsharingConnector {
 							type = DataTypeDto.FUTURE_AVAILABILITY;
 						// write vehicle state to vehicleData
 						Set<ShortRecordDto> dtos = new HashSet<ShortRecordDto>();
-						dtos.add(new ShortRecordDto(begin2.getTimeInMillis(), state, 600));
+						dtos.add(new ShortRecordDto(begin2.getTimeInMillis(), state, 600,"Short"));
 						typeMap.put(type, dtos);
 						vehicleData.put(vehicleOccupancy.getVehicle().getId(), typeMap);
 					}
@@ -283,17 +287,17 @@ public class CarsharingConnector {
 					// write available vehicles to stationData
 					Set<ShortRecordDto> dtos = new HashSet<ShortRecordDto>();
 					Map<String, Set<ShortRecordDto>> typeMap = new HashMap<>();
-					dtos.add(new ShortRecordDto(begin2.getTimeInMillis(), freeVehicles, 600));
+					dtos.add(new ShortRecordDto(begin2.getTimeInMillis(), freeVehicles, 600,"Short"));
 					typeMap.put(DataTypeDto.NUMBER_AVAILABE, dtos);
 					stationData.put(stationId, typeMap);
 				}
 			}
 
 			// Write data to integreen
-			Object pushStations = jsonCarsharingPusher.pushData(INTEGREEN_STATION,stationData);
+			Object pushStations = jsonCarsharingPusher.pushData(INTEGREEN_STATION, new Object[] { stationData });
 			if (pushStations instanceof IntegreenException)
 				throw new IOException("IntegreenException: real time stations sync");
-			Object pushCars = jsonCarsharingPusher.pushData(INTEGREEN_CAR,vehicleData);
+			Object pushCars = jsonCarsharingPusher.pushData(INTEGREEN_CAR, new Object[] { vehicleData });
 			if (pushCars instanceof IntegreenException)
 				throw new IOException("IntegreenException: real time cars sync");
 		}

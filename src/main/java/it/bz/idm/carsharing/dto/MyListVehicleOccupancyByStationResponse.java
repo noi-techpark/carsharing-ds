@@ -1,16 +1,14 @@
 
 package it.bz.idm.carsharing.dto;
 
-import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
-
 public class MyListVehicleOccupancyByStationResponse
 {
    public static class VehicleAndOccupancies
    {
-      CarsharingVehicleDto     vehicle;
+      MyCarsharingVehicleDto     vehicle;
       MyOccupancy[] occupancy;
 
-      public CarsharingVehicleDto getVehicle()
+      public MyCarsharingVehicleDto getVehicle()
       {
          return this.vehicle;
       }

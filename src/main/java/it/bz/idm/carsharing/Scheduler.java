@@ -20,18 +20,18 @@ public class Scheduler {
 
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 	private HashMap<String, List<String>> vehicleIdsByStationIds;
-	
+
 	@Autowired
 	private JsonCarsharingPusher jsonCarsharingPusher;
 
 	@Autowired
 	private CarsharingConnector carsharingConnector;
 
-//	@Autowired
-//	CarsharingStationSync stationPusher;
-//
-//	@Autowired
-//	CarsharingCarSync carPusher;
+	// @Autowired
+	// CarsharingStationSync stationPusher;
+	//
+	// @Autowired
+	// CarsharingCarSync carPusher;
 
 	/**
 	 * for getting the static data like vehicle and stationlist from the
@@ -51,10 +51,9 @@ public class Scheduler {
 	 * carsharingAPI and push them to the integreen-platform
 	 */
 	@Scheduled(cron = "0 0/10 * * * ?") // every 10 minutes, but at 6.10 PM
-	// @Scheduled(fixedRate=36000) //for faster testing
 	public void realTimeTask() {
 		try {
-			carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds,jsonCarsharingPusher);
+			carsharingConnector.connectForRealTimeData(vehicleIdsByStationIds, jsonCarsharingPusher);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -75,11 +74,12 @@ public class Scheduler {
 		numberAvailableDataTypeDto.setDescription("Carsharing Station number-available");
 		numberAvailableDataTypeDto.setName(DataTypeDto.NUMBER_AVAILABE);
 
-		Object syncStaionDataTypes = jsonCarsharingPusher.syncDataTypes(new Object[] {numberAvailableDataTypeDto });
+		Object syncStaionDataTypes = jsonCarsharingPusher.syncDataTypes("Carsharing",
+				new Object[] { numberAvailableDataTypeDto });
 		if (syncStaionDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: station dataType syncing");
-		Object syncCarDataTypes = jsonCarsharingPusher
-				.syncDataTypes(new Object[] { availibilityDataTypeDto, futureAvailibilityDataTypeDto });
+		Object syncCarDataTypes = jsonCarsharingPusher.syncDataTypes("Carsharing",
+				new Object[] { availibilityDataTypeDto, futureAvailibilityDataTypeDto });
 		if (syncCarDataTypes instanceof IntegreenException)
 			throw new IOException("IntegreenException: car dataType syncing");
 		logger.info("Data Types sync finished");

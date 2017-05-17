@@ -1,15 +1,13 @@
 package it.bz.idm.carsharing.dto;
 
-import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
-
 public class MyGetVehicleResponse {
-	CarsharingVehicleDto[] carsharingVehicleDto;
+	MyCarsharingVehicleDto[] carsharingVehicleDto;
 
-	public void setVehicle(CarsharingVehicleDto[] vehicle) {
+	public void setVehicle(MyCarsharingVehicleDto[] vehicle) {
 		this.carsharingVehicleDto = vehicle;
 	}
 
-	public CarsharingVehicleDto[] getVehicle() {
+	public MyCarsharingVehicleDto[] getVehicle() {
 		return this.carsharingVehicleDto;
 	}
 }
