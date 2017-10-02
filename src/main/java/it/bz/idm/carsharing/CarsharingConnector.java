@@ -7,7 +7,6 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
@@ -26,9 +25,9 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import it.bz.idm.bdp.dto.DataMapDto;
 import it.bz.idm.bdp.dto.DataTypeDto;
 import it.bz.idm.bdp.dto.SimpleRecordDto;
-import it.bz.idm.bdp.dto.TypeMapDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingStationDto;
 import it.bz.idm.bdp.dto.carsharing.CarsharingVehicleDto;
 import it.bz.idm.bdp.util.IntegreenException;
@@ -243,8 +242,8 @@ public class CarsharingConnector {
 			}
 			String[] stationIds = vehicleIdsByStationIds.keySet().toArray(new String[0]);
 			Arrays.sort(stationIds);
-			Map<String, TypeMapDto> stationData = new HashMap<String, TypeMapDto>();
-			Map<String, TypeMapDto> vehicleData = new HashMap<String, TypeMapDto>();
+			DataMapDto stationData = new DataMapDto();
+			DataMapDto vehicleData = new DataMapDto();
 			for (String stationId : stationIds) {
 				List<String> vehicleIds = vehicleIdsByStationIds.get(stationId);
 				MyListVehicleOccupancyByStationRequest listVehicleOccupancyByStationRequestDto = new MyListVehicleOccupancyByStationRequest(
@@ -270,7 +269,7 @@ public class CarsharingConnector {
 							state = 1;
 						else
 							freeVehicles++;
-						TypeMapDto typeMap = new TypeMapDto();
+						DataMapDto typeMap = new DataMapDto();
 						String type = "unknown";
 						if (forecast == 0)
 							type = DataTypeDto.AVAILABILITY;
@@ -279,16 +278,16 @@ public class CarsharingConnector {
 						// write vehicle state to vehicleData
 						List<SimpleRecordDto> dtos = new ArrayList<SimpleRecordDto>();
 						dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), state, 600));
-						typeMap.getRecordsByType().put(type, dtos);
-						vehicleData.put(vehicleOccupancy.getVehicle().getId(), typeMap);
+						typeMap.getBranch().put(type,new DataMapDto(dtos));
+						vehicleData.getBranch().put(vehicleOccupancy.getVehicle().getId(), typeMap);
 					}
 
 					// write available vehicles to stationData
-					TypeMapDto typeMap = new TypeMapDto();
+					DataMapDto typeMap = new DataMapDto();
 					List<SimpleRecordDto> dtos = new ArrayList<SimpleRecordDto>();
 					dtos.add(new SimpleRecordDto(begin2.getTimeInMillis(), freeVehicles, 600));
-					typeMap.getRecordsByType().put(DataTypeDto.NUMBER_AVAILABE, dtos);
-					stationData.put(stationId, typeMap);
+					typeMap.getBranch().put(DataTypeDto.NUMBER_AVAILABE, new DataMapDto(dtos));
+					stationData.getBranch().put(stationId, typeMap);
 				}
 			}
 
