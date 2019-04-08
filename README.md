@@ -1,3 +1,11 @@
+DEPRECATED REPOSITORY
+=====================
+
+This repository is deprecated. All data collectors and web services are kept within 
+https://github.com/idm-suedtirol/bdp-commons.
+
+
+
 # Car sharing data source
 
 Table of content
